@@ -1,403 +1,270 @@
- <!DOCTYPE html>
-<html lang="es-MX">
-    <head>
-        <meta http-equiv="X-UA-Compatible" content="IE=10.000"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-        <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-        <meta http-equiv="cache-control" content="no-cache,no-store"/>
-        <meta http-equiv="pragma" content="no-cache"/>
-        <meta http-equiv="expires" content="-1"/>
-        <meta name='mswebdialog-title' content='Connecting to sts.itam.mx'/>
+---
+title: "Estadística no paramétrica - Lab 1"
+author: "Jorge de la Vega"
+date: "12 de enero de 2023"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
 
-        <title>Iniciar sesi&#243;n</title>
-        <script type='text/javascript'>
-//<![CDATA[
-function LoginErrors(){this.userNameFormatError = 'Escriba el identificador de usuario con el formato \u0026quot;dominio\\usuario\u0026quot; o \u0026quot;usuario@dominio\u0026quot;.'; this.passwordEmpty = 'Escriba la contrase\u0026#241;a.'; this.passwordTooLong = 'La contrase\u0026#241;a debe tener menos de 128 caracteres.';}; var maxPasswordLength = 128;
-//]]>
-</script>
-
-<script type='text/javascript'>
-//<![CDATA[
-// Copyright (c) Microsoft Corporation.  All rights reserved.
-function InputUtil(errTextElementID, errDisplayElementID) {
-
-    if (!errTextElementID)  errTextElementID = 'errorText'; 
-    if (!errDisplayElementID)  errDisplayElementID = 'error'; 
-
-    this.hasFocus = false;
-    this.errLabel = document.getElementById(errTextElementID);
-    this.errDisplay = document.getElementById(errDisplayElementID);
-};
-InputUtil.prototype.canDisplayError = function () {
-    return this.errLabel && this.errDisplay;
+```{css, echo=FALSE}
+p {
+  font-size: 18px;
 }
-InputUtil.prototype.checkError = function () {
-    if (!this.canDisplayError){
-        throw new Error ('Error element not present');
-    }
-    if (this.errLabel && this.errLabel.innerHTML) {
-        this.errDisplay.style.display = '';        
-        var cause = this.errLabel.getAttribute('for');
-        if (cause) {
-            var causeNode = document.getElementById(cause);
-            if (causeNode && causeNode.value) {
-                causeNode.focus();
-                this.hasFocus = true;
-            }
-        }
-    }
-    else {
-        this.errDisplay.style.display = 'none';
-    }
-};
-InputUtil.prototype.setInitialFocus = function (input) {
-    if (this.hasFocus) return;
-    var node = document.getElementById(input);
-    if (node) {
-        if ((/^\s*$/).test(node.value)) {
-            node.focus();
-            this.hasFocus = true;
-        }
-    }
-};
-InputUtil.prototype.setError = function (input, errorMsg) {
-    if (!this.canDisplayError) {
-        throw new Error('Error element not present');
-    }
-    input.focus();
+li {
+  font-size: 18px;
+}
+```
 
-    if (errorMsg) {
-        this.errLabel.innerHTML = errorMsg;
-    }
-    this.errLabel.setAttribute('for', input.id);
-    this.errDisplay.style.display = '';
-};
-InputUtil.makePlaceholder = function (input) {
-    var ua = navigator.userAgent;
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center",
+                      comment = NULL, warning = FALSE, fig.height = 5)
+options(width=180)
+```
 
-    if (ua != null && 
-        (ua.match(/MSIE 9.0/) != null || 
-         ua.match(/MSIE 8.0/) != null ||
-         ua.match(/MSIE 7.0/) != null)) {
-        var node = document.getElementById(input);
-        if (node) {
-            var placeholder = node.getAttribute("placeholder");
-            if (placeholder != null && placeholder != '') {
-                var label = document.createElement('input');
-                label.type = "text";
-                label.value = placeholder;
-                label.readOnly = true;
-                label.style.position = 'absolute';
-                label.style.borderColor = 'transparent';
-                label.className = node.className + ' hint';
-                label.tabIndex = -1;
-                label.onfocus = function () { this.nextSibling.focus(); };
+# Estimación de funciones de distribución empíricas. 
 
-                node.style.position = 'relative';
-                node.parentNode.style.position = 'relative';
-                node.parentNode.insertBefore(label, node);
-                node.onkeyup = function () { InputUtil.showHint(this); };
-                node.onblur = function () { InputUtil.showHint(this); };
-                node.style.background = 'transparent';
+## Ejercicio 1. 
 
-                node.setAttribute("placeholder", "");
-                InputUtil.showHint(node);
-            }
-        }
-    }
-};
-InputUtil.focus = function (inputField) {
-    var node = document.getElementById(inputField);
-    if (node) node.focus();
-};
-InputUtil.hasClass = function(node, clsName) {
-    return node.className.match(new RegExp('(\\s|^)' + clsName + '(\\s|$)'));
-};
-InputUtil.addClass = function(node, clsName) {
-    if (!this.hasClass(node, clsName)) node.className += " " + clsName;
-};
-InputUtil.removeClass = function(node, clsName) {
-    if (this.hasClass(node, clsName)) {
-        var reg = new RegExp('(\\s|^)' + clsName + '(\\s|$)');
-        node.className = node.className.replace(reg, ' ');
-    }
-};
-InputUtil.showHint = function (node, gotFocus) {
-    if (node.value && node.value != '') {
-        node.previousSibling.style.display = 'none';
-    }
-    else {
-        node.previousSibling.style.display = '';
-    }
-};
-//]]>
-</script>
+Supongan que les dan las siguientes 100 observaciones. Encontrar la función de distribución estimada máximo verosímil y una banda de confianza del 95% para el estimador de la función de distribución. ¿Se puede decir algo sobre si los datos provienen de una $N(0,1)$?
 
+```{r}
+datos <- c(-0.16,-0.68,-0.32,-0.85, 0.89,-2.28, 0.63, 0.41, 0.15, 0.74, 1.30,-0.13, 0.80,
+           -0.75, 0.28,-1.00, 0.14,-1.38,-0.04,-0.25,-0.17, 1.29, 0.47,-1.23, 0.21,-0.04,
+            0.07,-0.08, 0.32,-0.17, 0.13,-1.94, 0.78, 0.19,-0.12,-0.19, 0.76,-1.48,-0.01,
+            0.20,-1.97,-0.37, 3.08,-0.40, 0.80, 0.01, 1.32,-0.47, 2.29,-0.26,-1.52,-0.06,
+           -1.02, 1.06, 0.60, 1.15, 1.92,-0.06,-0.19, 0.67, 0.29, 0.58, 0.02, 2.18,-0.04,
+           -0.13,-0.79,-1.28,-1.41,-0.23, 0.65,-0.26,-0.17,-1.53,-1.69,-1.60, 0.09,-1.11, 
+            0.30, 0.71,-0.88,-0.03, 0.56,-3.68, 2.40, 0.62, 0.52,-1.25, 0.85,-0.09,-0.23,
+           -1.16, 0.22,-1.68, 0.50,-0.35,-0.35,-0.33,-0.24, 0.25)
+```
 
-        
-        <link rel="stylesheet" type="text/css" href="/adfs/portal/css/style.css?id=C54906542F8D111B0BFBF7BC1B9B6B5E3FE2C15780C737F4525D749272D8BAAF" /><style>.illustrationClass {background-image:url(/adfs/portal/illustration/illustration.jpg?id=8E73F60D623BD034EC4E460F801D2BED8DC7FC258028999C4B9A91B8B00A93E9);}</style>
+**Solución**
 
-    </head>
-    <body dir="ltr" class="body">
-    <div id="noScript" style="position:static; width:100%; height:100%; z-index:100">
-        <h1>Se requiere JavaScript</h1>
-        <p>Se requiere JavaScript. El explorador web no es compatible con JavaScript o no se ha habilitado JavaScript en este explorador web.</p>
-        <p>Para determinar si su explorador web es compatible con JavaScript o para habilitar JavaScript, consulte la ayuda del explorador web.</p>
-    </div>
-    <script type="text/javascript" language="JavaScript">
-         document.getElementById("noScript").style.display = "none";
-    </script>
-    <div id="fullPage">
-        <div id="brandingWrapper" class="float">
-            <div id="branding"></div>
-        </div>
-        <div id="contentWrapper" class="float">
-            <div id="content">
-                <div id="header">
-                    <img class="logoImage" src="/adfs/portal/logo/logo.png?id=7077671BEC8F258E1C5E1A394B2B629D184C92A4D97F7C11F237F4C5090766A5" alt="sts.itam.mx"/>
-                </div>
-                <div id="workArea">
-                    
-    <div id="authArea" class="groupMargin">
-        
-        
-    <div id="loginArea">        
-        <div id="loginMessage" class="groupMargin">Inicie sesi&#243;n mediante su cuenta organizativa</div>
+Podemos simplificar un poco la notación abajo si primero ordenamos los datos (generando entonces las estadísticas de orden de la muestra)
 
-        <form method="post" id="loginForm" autocomplete="off" novalidate="novalidate" onKeyPress="if (event && event.keyCode == 13) Login.submitLoginRequest();" action="/adfs/ls?SAMLRequest=fZLNTsMwEITvPEXkexLXqVpqJZFKK0SlAlEbOHBBbrJpLSV28Dr8vD1OCqIc2ut6vp2dXccomrrl884e1AbeOkDrfTa1Qj48JKQzimuBErkSDSC3Bd%2FO79ecBZS3Rltd6JqcIJcJgQjGSq2It1om5DUCOma7ycxn02jmj4Fe%2B7Myqnw6YeWETaEqSka8ZzDomIS4Fg5E7GCl0AplXYmyyKcjP6I5pXxM%2BSh6Id7S5ZBK2IE6WNsiD0O0GEgrmqD5DEVZYVgj8ea%2FEy20wq4BswXzLgt42qz%2FyIGSztJ0he0MBIVuwlrvpQr7zMTLfjZxI1Up1f7yEnZHEfK7PM%2F87HGbkzTu%2B%2FAhmkl723OuvY7F4ak8Pt7wwRmtlpmuZfHl3WrTCHt%2BjlEwGiqy9KtByjuFLRSyklC6rdS1%2FlgYEBYS4vyBhOnR9P9fSa%2B%2BAQ%3D%3D&SigAlg=http%3A%2F%2Fwww.w3.org%2F2000%2F09%2Fxmldsig%23rsa-sha1&Signature=c4lS0ivSOjkwjmi%2B4LjKZOQ5MCp11LAEUbyz5KLy7bJODmxNpYH7ToQdbNSX9ByoLbpjCnrOXC7JKBKB27w2ldVBNP6wM%2BOgqgYgqutuA9j%2Befgu7j4kY1UulP4FNG5fEsWL%2BmlaiygDXHLANCLikeDAKLmatgksqiJNLXWMOKjz%2Fr3%2BcWdWH9yOTrsjOmShxpsQyaQhyKZo8dfA8me3F6snJ%2BlmYtSw3S%2Fk4xmDgn6MxKGexLVd9EY64x3zVDf8Mdls%2Bk3C8Tqf0ajd7EmPGy3Vv1W86TlndpSy1wS9ndea1YYrFXNZ90iMtemZyR4oRCmTUjacU1m1hnzLdRmjTg%3D%3D" >
-            <div id="error" class="fieldMargin error smallText">
-                <label id="errorText" for=""></label>
-            </div>
+```{r}
+datos_ord <- sort(datos)  #ordena los datos por default en orden creciente.
+```
 
-            <div id="formsAuthenticationArea">
-                <div id="userNameArea">
-                    <input id="userNameInput" name="UserName" type="email" value="" tabindex="1" class="text fullWidth" 
-                        spellcheck="false" placeholder="alguien@example.com" autocomplete="off"/>     
-                </div>
+De acuerdo a lo visto en clase, el estimador máximo-verosímil de la función de distribución $F$ de los datos es la función de distribución empírica $\hat{F}_n$, que se puede obtener con la función `ecdf`.
 
-                <div id="passwordArea">
-                     <input id="passwordInput" name="Password" type="password" tabindex="2" class="text fullWidth" 
-                        placeholder="Contrase&#241;a" autocomplete="off"/>                                   
-                </div>
-                <div id="kmsiArea" style="display:none">
-                    <input type="checkbox" name="Kmsi" id="kmsiInput" value="true" tabindex="3" />
-                    <label for="kmsiInput">Mantener la sesi&#243;n iniciada</label>
-                </div>
-                <div id="submissionArea" class="submitMargin">
-                    <span id="submitButton" class="submit" tabindex="4" 
-                        onKeyPress="if (event && event.keyCode == 32) Login.submitLoginRequest();" 
-                        onclick="return Login.submitLoginRequest();">Iniciar sesi&#243;n</span>
-                </div>
-            </div>
-            <input id="optionForms" type="hidden" name="AuthMethod" value="FormsAuthentication"/>
-        </form>
+```{r}
+dis <- ecdf(datos_ord)
+plot(datos_ord, dis(datos_ord), type = "S", 
+    main = "Función de distribución empírica", 
+    xlab = "x", ylab = expression(hat(F)[n])) # noten que dist es una función!
+```
 
-             <div id="authOptions">
-        <form id="options"  method="post" action="https://sts.itam.mx:443/adfs/ls?SAMLRequest=fZLNTsMwEITvPEXkexLXqVpqJZFKK0SlAlEbOHBBbrJpLSV28Dr8vD1OCqIc2ut6vp2dXccomrrl884e1AbeOkDrfTa1Qj48JKQzimuBErkSDSC3Bd%2FO79ecBZS3Rltd6JqcIJcJgQjGSq2It1om5DUCOma7ycxn02jmj4Fe%2B7Myqnw6YeWETaEqSka8ZzDomIS4Fg5E7GCl0AplXYmyyKcjP6I5pXxM%2BSh6Id7S5ZBK2IE6WNsiD0O0GEgrmqD5DEVZYVgj8ea%2FEy20wq4BswXzLgt42qz%2FyIGSztJ0he0MBIVuwlrvpQr7zMTLfjZxI1Up1f7yEnZHEfK7PM%2F87HGbkzTu%2B%2FAhmkl723OuvY7F4ak8Pt7wwRmtlpmuZfHl3WrTCHt%2BjlEwGiqy9KtByjuFLRSyklC6rdS1%2FlgYEBYS4vyBhOnR9P9fSa%2B%2BAQ%3D%3D&SigAlg=http%3A%2F%2Fwww.w3.org%2F2000%2F09%2Fxmldsig%23rsa-sha1&Signature=c4lS0ivSOjkwjmi%2B4LjKZOQ5MCp11LAEUbyz5KLy7bJODmxNpYH7ToQdbNSX9ByoLbpjCnrOXC7JKBKB27w2ldVBNP6wM%2BOgqgYgqutuA9j%2Befgu7j4kY1UulP4FNG5fEsWL%2BmlaiygDXHLANCLikeDAKLmatgksqiJNLXWMOKjz%2Fr3%2BcWdWH9yOTrsjOmShxpsQyaQhyKZo8dfA8me3F6snJ%2BlmYtSw3S%2Fk4xmDgn6MxKGexLVd9EY64x3zVDf8Mdls%2Bk3C8Tqf0ajd7EmPGy3Vv1W86TlndpSy1wS9ndea1YYrFXNZ90iMtemZyR4oRCmTUjacU1m1hnzLdRmjTg%3D%3D">
-            <script type="text/javascript">
-                function SelectOption(option) {
-                    var i = document.getElementById('optionSelection');
-                    i.value = option;
-                    document.forms['options'].submit();
-                    return false;
-                }
-            </script>
-            <input id="optionSelection" type="hidden" name="AuthMethod" />
-            <div class='groupMargin'></div>
-        </form>
-      </div>
+La banda de confianza la podemos encontrar con la fórmula vista en la primera clase
 
-        <div id="introduction" class="groupMargin">
-            <p><a href='https://enlace.itam.mx/paso/mailpwd/chpwcv.aspx' style='text-decoration: underline;'>¿Olvidó su contraseña?</a> </p>                     
-        </div>
+```{r}
+n <- length(datos) # número de observaciones.
+alfa <- 0.05
+(eps <- sqrt(log(2/alfa)/(2*n))) #los paréntesis se agregan para que el resultado de la asignación se imprima
 
-        <script type="text/javascript">
-        //<![CDATA[
+plot(datos_ord, dis(datos_ord), type = "S", main ="Banda de confianza de la distribución empírica", 
+     xlab="x", ylab=expression(hat(F)[n](x)))
+abline(h = 1, lty = 2, col = "gray", lwd = 2)
+rug(datos_ord, ticksize = 0.02, col = "blue") #agrega la ubicación de los puntos.
+lines(datos_ord, pmax(dis(datos_ord) - eps, 0), col = "red", type = "S") #banda superior
+lines(datos_ord, pmin(dis(datos_ord) + eps, 1), col = "red", type = "S") #banda inferior
+```
 
-            function Login() {
-            }
+La última pregunta nos pide probar la hipótesis $H_0: F \equiv N(0,1)$ vs $ H_a: F \neq N(0,1)$. Aquí se puede utilizar la prueba de Kolmogorov-Smirnov de bondad de ajuste
 
-            Login.userNameInput = 'userNameInput';
-            Login.passwordInput = 'passwordInput';
+```{r}
+ks.test(datos_ord, pnorm, alternative = "two.sided")
+```
 
-            Login.initialize = function () {
+El *warning* nos lo da porque los datos tienen una observación repetida, lo cual tiene probabilidad 0 bajo una distribución continua, y en los datos hay varias repeticiones de datos, por ejemplo, -0.04 aparece 3 veces. Ignorando el aviso, vemos que el p-value es 0.3191, por lo que no tenemos evidencia para rechazar la hipótesis. Podemos agregar a la gráfica la curva normal para ver si cae en el intervalo de confianza:
 
-                var u = new InputUtil();
+```{r}
+plot(datos_ord, dis(datos_ord), type = "S", main="Comparación entre distribuciones", xlab="x", ylab="")
+abline(h = 1, lty = 2, col = "gray", lwd = 2)
+rug(datos_ord, ticksize=0.02, col = "blue")
+lines(datos_ord,pmax(dis(datos_ord) - eps, 0), col = "red", type = "S")
+lines(datos_ord,pmin(dis(datos_ord) + eps, 1), col = "red", type = "S")
+lines(datos_ord,pnorm(datos_ord),col="green3", lwd =2)
+```
 
-                u.checkError();
-                u.setInitialFocus(Login.userNameInput);
-                u.setInitialFocus(Login.passwordInput);
-            }();
+Vemos que la curva normal cae dentro de la banda de confianza del 95% uniformemente.
 
-            Login.submitLoginRequest = function () { 
-                var u = new InputUtil();
-                var e = new LoginErrors();
+---
 
-                var userName = document.getElementById(Login.userNameInput);
-                var password = document.getElementById(Login.passwordInput);
+## Ejercicio 2
 
-                if (!userName.value || !userName.value.match('[@\\\\]')) {
-                    u.setError(userName, e.userNameFormatError);
-                    return false;
-                }
+Cada persona en una muestra aleatoria de $n=10$ empleados les preguntaron acerca del tiempo diario $X$ gastado en actividades no relacionadas con el trabajo, tal como navegar por internet, y mandando emails a amigos. Los datos resultantes, en minutos son los siguientes. 
 
-                if (!password.value) {
-                    u.setError(password, e.passwordEmpty);
-                    return false;
-                }
+```{r}
+X <- c(108, 112, 117, 130, 111, 131, 113, 113, 105, 128)
+```
 
-                if (password.value.length > maxPasswordLength) {
-                    u.setError(password, e.passwordTooLong);
-                    return false;
-                }
+Usar los datos para encontrar una banda de confianza del 99% para la distribución de probabilidad desconocida $F(x)$.
 
-                document.forms['loginForm'].submit();
-                return false;
-            };
+**Solución**
 
-            InputUtil.makePlaceholder(Login.userNameInput);
-            InputUtil.makePlaceholder(Login.passwordInput);
-        //]]>
-        </script>
-    </div>
+Ejercicio similar al previo. Sólo hay que actualizar el nivel de significancia. Como el procedimiento es similar, podemos aprovechar la ocasión para definir una función que haga el cálculo por nosotros
 
-    </div>
-
-                </div>
-                <div id="footerPlaceholder"></div>
-            </div>
-            <div id="footer">
-                <div id="footerLinks" class="floatReverse">
-                     <div><span id="copyright">&#169; 2013 Microsoft</span><a id="home" class="pageLink" href="https://www.itam.mx">ITAM</a><a id="privacy" class="pageLink" href="http://avisodeprivacidad.itam.mx/itam/">PRIVACIDAD</a><a id="helpDesk" class="pageLink" href="mailto:admcomunidad@comunidad.itam.mx">SOPORTE</a></div>
-                </div>
-            </div>
-        </div> 
-    </div>
-    <script type='text/javascript'>
-//<![CDATA[
-// Copyright (c) Microsoft Corporation.  All rights reserved.
-
-// This file contains several workarounds on inconsistent browser behaviors that administrators may customize.
-"use strict";
-
-// iPhone email friendly keyboard does not include "\" key, use regular keyboard instead.
-// Note change input type does not work on all versions of all browsers.
-if (navigator.userAgent.match(/iPhone/i) != null) {
-    var emails = document.querySelectorAll("input[type='email']");
-    if (emails) {
-        for (var i = 0; i < emails.length; i++) {
-            emails[i].type = 'text';
-        }
-    }
+```{r}
+banda.distr <- function(x, alfa=0.05){
+    # función que calcula banda de confianza de nivel 1-alfa
+    # alrededor de la distribución empírica de una muestra x al 
+    n <- length(x) # número de observaciones.
+    x_ord <- sort(x) # ordena los dato
+    dis <- ecdf(x_ord) #función de distribución empírica
+    eps <- sqrt(log(2/alfa)/(2*n))
+    plot(x_ord, dis(x_ord), ylim = c(0,1), type = "S", xlab = "x", ylab = expression(hat(F)[n](x)),
+         main = paste("Banda de confianza de ",100*(1-alfa),"% para dist empírica",sep=""))
+    abline(h = 1, lty = 2, col = "gray", lwd = 2)
+    rug(x_ord, ticksize = 0.03, col = "blue")
+    lines(x_ord,pmax(dis(x_ord) - eps, 0), col = "red", type = "S")
+    lines(x_ord,pmin(dis(x_ord) + eps, 1), col = "red", type = "S")
 }
 
-// In the CSS file we set the ms-viewport to be consistent with the device dimensions, 
-// which is necessary for correct functionality of immersive IE. 
-// However, for Windows 8 phone we need to reset the ms-viewport's dimension to its original
-// values (auto), otherwise the viewport dimensions will be wrong for Windows 8 phone.
-// Windows 8 phone has agent string 'IEMobile 10.0'
-if (navigator.userAgent.match(/IEMobile\/10\.0/)) {
-    var msViewportStyle = document.createElement("style");
-    msViewportStyle.appendChild(
-        document.createTextNode(
-            "@-ms-viewport{width:auto!important}"
-        )
-    );
-    msViewportStyle.appendChild(
-        document.createTextNode(
-            "@-ms-viewport{height:auto!important}"
-        )
-    );
-    document.getElementsByTagName("head")[0].appendChild(msViewportStyle);
+```
+Entonces para nuestro ejercicio:
+
+```{r}
+banda.distr(X,alfa=0.01)
+```
+
+En este caso hay muy pocos datos, de ahí la apariencia de la curva y del intervalo de confianza.
+
+---
+
+# Ejemplo de cobertura de intervalos
+
+Para evaluar el desempeño de varios conjuntos de confianza que se pueden calcular en diversos contextos de estimación, se debe evaluar la **probabilidad de cobertura**: $P(p \in C)$ donde $C$ es el conjunto de confianza y $p$ es la cantidad de interés.
+
+No es un problema fácil de resolver analíticamente, hay que hacerlo por simulación. 
+
+## Ejercicio 3. 
+
+Ejemplo de cobertura de intervalo de probabilidad binomial. Hacemos la gráfica de cobertura para distintos valores de $p$
+
+
+```{r}
+n <- 30   # Tamaño de muestra
+X <- 0:n  # Posibles valores del número de éxitos en n ensayos
+p <- 0.80
+phat <- X/n  # estimador de la probabilidad
+li <- phat - 1.96*sqrt(phat*(1-phat)/n)
+ls <- phat + 1.96*sqrt(phat*(1-phat)/n)
+
+# Suponiendo el verdadero valor del parámetro
+prob <- dbinom(X, n, p)  # probabilidades
+cobertura <-  (p > li ) & (p < ls)  # determina si estas en el intervalo o no
+round(cbind(X, phat, li, ls, prob, cobertura),4)
+
+# Probabilidad de cobertura en p
+sum(dbinom(X[cobertura],n,p))
+```
+
+Càlculo de la probabilidad de cobertura para un caso en particular: 
+
+```{r}
+k <- 1000 # número de muestras montecarlo para el cálculo del coverage
+p <- 0.8
+n <- 30
+alpha <- 0.05
+# Diferentes intervalos
+Wald <- vector(length = k)
+for(i in 1:k){
+  x <- rbinom(n,1,p) # Muestra aleatoria
+  xbar <- mean(x)
+  sd <- sqrt(xbar*(1-xbar)/n)
+  ci <- xbar + c(-1,1)*qnorm(1-alpha/2,lower.tail = T)*sd
+  Wald[i] <- ifelse((p <= ci[2]) & (p >= ci[1]), 1, 0)
+  # Intervalo exacto
+  
+}
+sum(Wald)/k
+```
+
+Extendiendo para varios posibles valores de $p$
+
+```{r}
+n <- 100                # tamaño de muestra
+alfa <- 0.05           # nivel significancia
+k <- qnorm(1-alfa/2)   # cuantil
+aj <- 0               # ajuste por continuidad
+
+X <- 0:n
+phat <- (X+aj)/(n+2*aj)
+margen.error <- k*sqrt(phat*(1 - phat)/(n + 2*aj))
+li <- phat - margen.error
+ls <- phat + margen.error
+# exacto
+
+m <- 2000
+p <- seq(1/n, 1-1/n, length = m)
+p.cob <- numeric(m)
+
+for(i in 1:m){
+  cober <- (p[i] >= li) & (p[i] <= ls)
+  probs <- dbinom(X[cober], n, p[i])
+  p.cob[i] <- sum(probs)
+}
+plot(p, p.cob, type = "l", main = paste("Cobertura real cuando n = ",n))
+abline(h = 0.95)
+```
+
+Comparando la cobertura de diferentes métodos de estimación de la banda de confianza: 
+
+```{r}
+library(Hmisc)  # para usar la función binconf que calcula los intervalos 
+
+binconf.varstab <- function (x, n, alfa){
+# Función que calcula los intervalos de confianza basados en transoformación para estabilizar varianza
+  len <- length(x)
+  ci.matrix <- matrix(0, len, 2) # matriz de len renglones y dos columnas para guardar los cálculos
+    for(r in 1:len){   
+        phat <- x[r]/n
+        h1 <- asin(sqrt(phat))
+        h2 <- 0.5*qnorm(alfa/2, lower.tail = F)/sqrt(n)
+        ci.matrix[r,] <- c((sin(h1-h2))^2, (sin(h1+h2))^2)
+    }
+    return(ci.matrix)
 }
 
-// If the innerWidth is defined, use it as the viewport width.
-if (window.innerWidth && window.outerWidth && window.innerWidth !== window.outerWidth) {
-    var viewport = document.querySelector("meta[name=viewport]");
-    viewport.setAttribute('content', 'width=' + window.innerWidth + 'px; initial-scale=1.0; maximum-scale=1.0');
+m <- 100                        # número de simlaciones
+n <- 20
+p <- seq(1/n, 1-1/n, length = m)  # vector de probabilidades verdaderas
+Res <- matrix(0, length(p), 4)    # matriz de resultados
+
+for (j in 1:length(p)){
+    p0 <- p[j]
+    x  <- rbinom(m, n, prob = p0)
+
+    res.exact <- binconf(x, n, method = "exact", alpha = alfa, include.x = TRUE, include.n = TRUE)
+    res.asymp <- binconf(x, n, method = "asymptotic", alpha = alfa, include.x=TRUE, include.n = TRUE)
+    res.wilson <- binconf(x, n, method = "wilson", alpha = alfa, include.x = TRUE, include.n = TRUE)
+    res.varstab <- binconf.varstab(x, n, alfa)
+    # calcula las proporciones de cubierta
+    exact <- sum((p0 >= res.exact[,4]) & (p0 <= res.exact[,5]))/m
+    asymp <- sum((p0 >= res.asymp[,4]) & (p0 <= res.asymp[, 5]))/m
+    wil   <- sum((p0 >= res.wilson[,4]) & (p0 <= res.wilson[, 5]))/m
+    varstab<-sum((p0 >= res.varstab[,1]) & (p0 <= res.varstab[,2]))/m
+    Res[j,] <- c(exact, asymp, wil, varstab)
 }
 
-// Gets the current style of a specific property for a specific element.
-function getStyle(element, styleProp) {
-    var propStyle = null;
+# Grafica
+plot(p, Res[,1], type = "l", col = "black", 
+             xlab = 'Prob real de éxito', 
+             ylab = 'proporción Cobertura ',ylim=c(0.5,1))
 
-    if (element && element.currentStyle) {
-        propStyle = element.currentStyle[styleProp];
-    }
-    else if (element && window.getComputedStyle) {
-        propStyle = document.defaultView.getComputedStyle(element, null).getPropertyValue(styleProp);
-    }
+lines(p, Res[,2], col = "blue")
+lines(p, Res[,3], col = "red")
+lines(p, Res[,4], col = "green")
+title(paste('Proporción de cobertura de IC binomial, n = ',as.character(n)))
 
-    return propStyle;
-}
+legend("bottomright", c("Exacta", "Asintótica", "Wilson"," Varstab"), 
+       col = c("black", "blue", "red", "green"),
+       merge = TRUE, lty = rep(1,5))
+abline(h = 1-alfa)
+```
 
-// The script below is used for downloading the illustration image 
-// only when the branding is displaying. This script work together
-// with the code in PageBase.cs that sets the html inline style
-// containing the class 'illustrationClass' with the background image.
-var computeLoadIllustration = function () {
-    var branding = document.getElementById("branding");
-    var brandingDisplay = getStyle(branding, "display");
-    var brandingWrapperDisplay = getStyle(document.getElementById("brandingWrapper"), "display");
-
-    if (brandingDisplay && brandingDisplay !== "none" &&
-        brandingWrapperDisplay && brandingWrapperDisplay !== "none") {
-        var newClass = "illustrationClass";
-
-        if (branding.classList && branding.classList.add) {
-            branding.classList.add(newClass);
-        } else if (branding.className !== undefined) {
-            branding.className += " " + newClass;
-        }
-        if (window.removeEventListener) {
-            window.removeEventListener('load', computeLoadIllustration, false);
-            window.removeEventListener('resize', computeLoadIllustration, false);
-        }
-        else if (window.detachEvent) {
-            window.detachEvent('onload', computeLoadIllustration);
-            window.detachEvent('onresize', computeLoadIllustration);
-        }
-    }
-};
-
-if (window.addEventListener) {
-    window.addEventListener('resize', computeLoadIllustration, false);
-    window.addEventListener('load', computeLoadIllustration, false);
-}
-else if (window.attachEvent) {
-    window.attachEvent('onresize', computeLoadIllustration);
-    window.attachEvent('onload', computeLoadIllustration);
-}
-if (typeof Login != 'undefined'){
-    Login.submitLoginRequest = function () {
-    var u = new InputUtil();
-    var e = new LoginErrors();
-    var userName = document.getElementById(Login.userNameInput);
-    var password = document.getElementById(Login.passwordInput);
-    if (userName.value && !userName.value.match('[@\\\\]'))
-    {
-        var userNameValue = 'itam\\' + userName.value;
-        document.forms['loginForm'].UserName.value = userNameValue;
-    }
-
-    if (!userName.value) {
-       u.setError(userName, e.userNameFormatError);
-       return false;
-    }
-
-    if (!password.value)
-    {
-        u.setError(password, e.passwordEmpty);
-        return false;
-    }
-    document.forms['loginForm'].submit();
-    return false;
-};
-}
-//]]>
-</script>
-
-
-    </body>
-</html> 
 
