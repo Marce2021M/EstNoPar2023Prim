@@ -1,0 +1,107 @@
+---
+title: "Ejercicios Estadística No Paramétrica"
+author: "Jorge de la Vega."
+format: 
+    html:
+      embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 1. Ejemplo de cálculo de la función potencia para la prueba del signo. 
+
+La potencia de una prueba estadística es la probabilidad de rechazar la nula $H_0$ cuando sabemos que la alternativa $H_a$ es cierta. Entonces es un "verdadero positivo" que usualmente se denota como $1-\beta$ y $\beta$ es la probabilidad del error tipo II.
+
+En el contexto paramétrico, la potencia de una prueba se puede escribir como función del parámetro y calcular la función potencia. 
+
+En este ejercicio, vamos a calcular la función potencia para un caso muy particular de la prueba del signo (No se puede trabajar en general porque requerimos poder evaluar la distribución de la estadística de prueba bajo la distribución alternativa).
+
+Consideremos $n=16$ observaciones de una población $N(M,1)$ , $\alpha=0.05$. 
+
+Supongan que queremos probar la hipótesis $H_0: M=28$ vs $H_a: M >28$, con mediana poblacional de $m = 29.04$ La región de rechazo es de la forma $R_{\alpha}=\{k | \sum_{i=k}^n {n \choose i}(1/2)^n \leq \alpha \}$. Escogemos como límite de la región el valor de $k$ entero más pequeño:
+
+```{r}
+n <- 16
+alfa <- 0.05
+round(pbinom(-0.01:n,n,0.5,lower.tail = F),6)  # empiezo de negativo porque lower.tail=F da P(X>x)
+```
+
+Entonces el valor para la alternativa es $K=12$ y el valor exacto de la significancia o tamaño de la prueba, es `r pbinom(11,n,0.5, lower.tail = F)`.
+
+La función potencia se obtiene evaluando:$Po(\theta) = P(K\geq 12|H_a) = \sum_{i=12}^{16} {16 \choose i}\theta^i(1-\theta)^{n-i}$, donde $\theta = P(X_i>28 | H_a)$. Evaluando para $\theta \in (0,1)$:
+
+```{r}
+k <- 12
+n <- 16
+Po <- function(th,n=16){pbinom(k-1,n,th,lower.tail = F)}
+Po <- Vectorize(Po)
+curve(Po,from = 0, to = 1,n=200)
+```
+
+La probabilidad de éxito (bajo la alternativa) en este problema es $\theta = P(X>28|H_a)$:
+
+```{r}
+(th0 <- pnorm((28-29.04)/1,lower.tail = F))
+# la potencia de la prueba es: 
+Po(th0)
+```
+
+Podemos comparar con la prueba de medias normal, ya que la mediana y la media coinciden en ese caso. La prueba se puede poner de la forma: $H_0: \mu=28$ vs $H_a: \mu=29.04$. Para estas hipótesis, la región de rechazo es $R=\{\bar{X} > 28 +z_{0.05}/\sqrt{16} = 28.41\}$.
+
+La potencia de la prueba en este caso es: $P(29.04) = P(\bar{X} >28.4 | X \sim N(29.04,1))$ o
+
+```{r}
+pnorm((28-29.04)/0.25, lower.tail = F)
+```
+
+Entonces la prueba normal es más poderosa como es de esperarse cuando se cumple el supuesto de normalidad.
+
+
+## 2. Ejercicios
+
+### 2.1 
+
+Se estima que al menos la mitad de los hombres que se someten a una operación para quitar el cáncer de próstata  sufren de efectos colaterales.  En un esfuerzo para reducir estos efectos, la FDA estudió un nuevo método para desarrollar la operación. De 19 operaciones sólo 3 hombres sufrieron los efectos colaterales. ¿Se puede concluir que el nuevo método de operación es efectivo en reducir los efectos colaterales?
+
+### 2.2 
+
+En el siguiente ejemplo, especificar $H_0$, $H_a$, la estadística de prueba, la regla de decisión, $\alpha$, la decisición, el p-value: En un juego se lanza un par de dados 180 veces, El evento "siete"  ocurró en 38 de los lanzamientos. Si los dados son honestos, la probabilidad de "siete" es 1/6, si los dados están cargados, la probabilildad es mayor. 
+
+a. ¿Es la probabilidad de "siete" lo que debe ser si los dados fueran honestos? Usar una prueba de una cola. 
+b. Encontrar un intervalo de confianza para P(siete) usando una aproximación de muestra grande. 
+
+### 2.3
+
+Se está probando un blindaje  de 10cm para ver qué tanto puede ser penetrado por un proyectil. Se lanzan 50 proyectiles en el blindaje y se mide la profundidad de la penetración.  Siete de los proyectiles hacen un hoyo completo, así que su profundidad se registra como 10+. Los 50 valores ordenados son los siguientes: 
+
+```{r}
+x <- c(5.37, 5.39, 5.42, 5.51, 5.63, 5.74, 5.82, 5.83, 5.94, 5.98, 6.07, 6.07, 6.13, 6.20, 6.21, 6.23, 6.25,
+       6.26, 6.26, 6.28, 6.29, 6.31, 6.35, 6.41, 6.57, 6.67, 6.81, 7.03, 7.40, 7.44, 7.82, 8.03, 8.11, 8.44,
+       8.51, 8.72, 8.83, 9.04, 9.33, 9.51, 9.61, 9.68, 9.82, 10.1, 10.1, 10.1, 10., 10.1, 10.1, 10.1)
+```
+
+Encontrar un intervalo de confianza del 95% para la mediana de penetración del blindaje.
+
+### 2.4 
+
+Se fabrica un billete de algodón con un cierto proceso. También se fabrica un billete de polímero de la misma denominación. Banxico quiere saber si el billete de polímero se prefiere sobre el de algodón, así que seleciona una muestra aleatoria de 10 personas, le da a cada uno un billete de cada tipo, y les pide que los traigan por un tiempo en su cartera. Al final de la prueba, 8 personas prefieren polímero sobre papel, 1 persona prefiere papel sobre polímero y una persona es indiferente. Probar la hipótesis de que una persona prefiera polímero sobre papel versus la alternativa de que prefiera papel sobre polímero. 
+
+### 2.5
+
+Los pesos de una muestra de 20 alumnos son los siguientes (en libras):
+
+```{r}
+pesos <- c(142, 134, 98, 119, 131, 103, 154, 122, 93, 137, 86, 119, 161, 144, 158, 165, 81, 117, 128, 103)
+```
+
+Probar la hipótesis de que el tercer decil no es mayor que 100.
+
+### 2.6
+
+Se desea diseñar un tipo de automóvil para permitir suficiente espacio para acomodar cómodamente a todos menos el 5% de las personas más altas que manejan. Estudios preliminares indican que el cuantil 95% fue de 70.3 pulgadas. Con la finalidad de ver si los estudios preliminares  son aun válidos, una muestra de tamaño 100 es seleccionada. Las 12 personas más altas  en la muestra tienen las siguientes alturas:
+
+```{r}
+h <- c(72.6, 70.0, 71.3, 70.5, 70.8, 76.0, 70.1, 72.5, 71.1, 70.6, 71.9, 72.8)
+```
+
+¿Es razonable usar 70.3 como el percentil 95%?

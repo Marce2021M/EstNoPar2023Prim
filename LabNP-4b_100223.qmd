@@ -1,0 +1,88 @@
+---
+title: "Ejercicios Estadística No Paramétrica"
+author: "Jorge de la Vega."
+format: 
+    html:
+      embed-resources: true
+      page-layout: full
+---
+
+## Problema 0a.
+Herbicida en fresas. La variable que se observa es el peso en seco de las plantas
+
+```{r}
+Ntr <- c(0.55, 0.67, 0.63, 0.79, 0.81, 0.85, 0.68)
+Trt <- c(0.65, 0.59, 0.44, 0.60, 0.47, 0.58, 0.66, 0.52, 0.51)
+```
+
+
+## Problema 0b.
+48 estudiantes de preparatoria. 12 de campo y 36 de ciudad. La hipótesis nula es que los estudiantes de campo tienen la misma  condición física que los de ciudad y la alternativa es que los de campo tienen mejor condición que los de ciudad
+
+```{r}
+Campo <- c(14.8, 10.6, 7.3, 12.5, 5.6, 12.9, 6.3, 16.1, 9.0, 11.4, 4.2, 2.7)
+Ciudad <- c(12.7, 16.9, 7.6, 2.4, 6.2, 9.9, 14.2, 7.9, 11.3, 6.4, 6.1, 10.6,
+             12.6, 16.0, 8.3, 9.1, 15.3, 14.8, 2.1, 10.6, 6.7, 6.7, 10.6, 5.0, 
+             17.7, 5.6, 3.6, 18.6, 1.8, 2.6, 11.8, 5.6, 1.0, 3.2, 5.9, 4.0)
+```
+
+
+### Problema 1. 
+Una muestra aleatoria de 10 observaciones se extrae de una población normal con media $\mu$ y varianza 1. En lugar de una prueba basada en normalidad, la prueba del signo se usa para probar $H_0:\mu = 0$ vs. $H_a:\mu>0$, con región de rechazo $K\in R$ para $K\geq 8$.
+
+
+- a. Graficar la curva de potencia usando la distribución exacta de $K$.
+- b. Graficar la curva de potencia usando la aproximación normal  a la distribución de $K$.
+- c. Discutir cómo pueden ayudar las funciones potencia a la elección del tamaño de muestra para un experimento.
+
+
+#### Solución
+
+- a. La función potencia es de la forma $Pw(\theta) = P(K \in R|H_a)$. Dado que la region de rechazo es $R=\{k\geq 8\}$, entonces $Pw(\theta) = P(K\geq 8| \theta)$ para $\theta>0$. Como $K\sim Bin(10,\theta)$, entonces
+\[ Pw(\theta) = P(K\geq 8|\theta) = \sum_{i=8}^{10} {n \choose i}\theta^i(1-\theta)^{n-i}\]
+
+Por otra parte, $\theta = P(X>0|H_a) = P(X-\mu>-\mu|\mu>0) = P(Z>-\mu|\mu>0) = 1-\Phi(-\mu)$, entonces, podemos calcular $\theta$ para los respectivos valores de $\mu$ para recorrer el dominio de $\theta$ que va para la hipótesis nula de 0.5 a 1.
+
+
+```{r}
+poder <- function(x)sapply(x,function(y)sum(dbinom(8:10,size=10,prob=y)))
+curve(poder, from = 0.5, to = 1,
+      main = "Función Potencia", xlab = expression(theta), ylab = expression(Pw(theta)))
+abline(h = 0.05, col="red")
+abline(h = 1, lty = 3)
+```
+
+La linea horizontal roja está trazada al nivel en $y=0.05$
+
+- b. En el caso de la aproximación normal para $K$, considerando la corrección por continuidad, nos queda:
+
+\[ Pw(\theta) = P(K\geq 8|\theta) = P\left(Z > \frac{8-n\theta-0.5}{\sqrt{n\theta(1-\theta)}} \right) = 1-\Phi\left( \frac{7.5-10\theta}{\sqrt{10\theta(1-\theta)}}\right) \]
+
+```{r}
+poder2 <- function(x)sapply(x,function(y)1-pnorm((7.5-10*y)/(sqrt(10*y*(1-y)) )))
+curve(poder2, from = 0.5, to = 1,
+      main = "Función Potencia con aproximación normal", xlab = expression(theta), ylab = expression(Pw(theta)))
+curve(poder,from=0.5, to = 1, add=T,col="green2")
+abline(h = 0.05, col="red")
+abline(h = 1, lty = 3)
+legend("topleft",col=c("black","green2"),lty=c(1,3),legend=c("Exacta","Aprox"))
+```
+
+Vemos que la aproximación normal es bastante buena incluso con $n=10$.
+
+- c. Se puede hacer el ejercicio de simulación, considerando diferentes tamaños de muestra y ver cómo afecta a la potencia de la prueba, dando lugar a la posibilidad de fijar un tamaño de muestra que sea adecuada para el nivel de significancia establecido, que es donde empieza la curva, cuando $\theta=0.5$.
+
+
+```{r}
+poder <- function(x,n=10)sapply(x,function(y)sum(dbinom(8:n,size=n,prob=y)))
+curve(poder, from = 0.5, to = 1,
+      main = "Función Potencia", xlab = expression(theta), ylab = expression(Pw(theta)))
+abline(h = 0.05, col="red")
+abline(h = 1, lty = 3)
+for(k in c(10:15,20,30)){
+    curve(poder(x,k),from=0.5,to = 1,add=T)
+    text(0.5,poder(0.5,k),paste0("n=",k),cex=0.6)
+    }
+```
+
+

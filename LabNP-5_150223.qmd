@@ -1,0 +1,135 @@
+---
+title: "LabNP-5_150223"
+author: "Jorge de la Vega"
+format: 
+    html:
+      embed-resources: true
+      page-layout: full
+editor_options: 
+  chunk_output_type: console
+---
+
+# Intervalo de confianza para desplazamiento y estimador de Hodges-Lehman.
+
+Se midieron trazas del elemento cerium en muestras de granito y basalto.
+
+```{r}
+Granito_x <- c(33.63, 39.86, 69.32, 42.13, 58.36, 74.11)
+Basalto_y <- c(26.15, 18.56, 17.55, 9.84, 28.29, 34.15)
+```
+
+Haciendolo "a mano"
+
+1. Tomar todas las diferencias y ordenarlas
+2. Calcular la mediana de las diferencias
+3. Encontrar los cuantiles de la distribución $U$
+
+```{r}
+d <- outer(Granito_x,Basalto_y,"-")
+dim(d) <- NULL   # Convierte a vector
+d_ord <- sort(d)
+median(d) # Hodges-Lehman.
+```
+
+Para obtener el intervalo de confianza, se requiere simular los valores de la distribución de $U$, que consiste en calcular la distriución de $U$ para dos muestras de tamaños 6 y 6
+
+```{r}
+d0 <- expand.grid(Granito_x,Basalto_y)
+(U0 <- sum(d0$Var1 < d0$Var2))  # U0 observada
+B <- 20000
+U <- numeric(B)
+for(i in 1:B){
+  x <- sample(c(Granito_x,Basalto_y),6)
+  y <- setdiff(c(Granito_x,Basalto_y),x)
+  d <- expand.grid(x,y)
+  U[i] <- sum(d$Var1 < d$Var2)
+}
+hist(U, breaks = 200)
+quantile(U,c(.05,.95)) # valores de ka y kb-1
+d_ord[c(8,29)]
+```
+
+Automatizando: 
+
+```{r}
+library(DescTools)
+HodgesLehmann(Granito_x,Basalto_y, conf.level = 0.9)
+```
+
+Comparando con la prueba $t$: supone que las dos poblaciones tienen la misma varianza y se tiene que sacar un estimador combinado. 
+
+```{r}
+t.test(Granito_x, Basalto_y, conf.level = 0.9)
+```
+
+
+# Prueba de Kruskall-Wallis para $k$ muestras
+
+Se tienen 4 métodos diferentes para cultivar maíz que fueron asignados aleatoriamente  a un diferentes terrenos y se midió el rendimiento por acre para cada terreno
+
+```{r}
+datos <- data.frame(rend = c(83,91,94,89,89,96,91,92,90,
+                              91,90,81,83,84,83,88,91,89,84,
+                              101,100,91,93,96,95,94,
+                              78,82,81,77,79,81,80,81),
+                     met = factor(rep(1:4,c(9,10,7,8))))
+with(datos, plot(rend ~ met))
+kruskal.test(rend ~ met, data = datos)
+```
+
+Comparaciones múltiples
+
+```{r}
+pairwise.wilcox.test(datos$rend, datos$met,p.adjust.method = "bonf")
+```
+
+# Prueba de Wilcoxon de rangos con signos. 
+
+```{r}
+par(mfrow=c(2,4))
+for(n in seq(from = 10,to = 80, by= 10)){
+  plot(0:(n*(n+1)/2), dsignrank(0:(n*(n+1)/2),n),
+       main = paste0("T+ para n=",n), xlab = "", ylab = "")
+}
+```
+
+
+# Prueba de Conover para varianzas
+
+La Fed empaqueta las bolsas de monedas sin contarlas, y las controla por peso. La Fed quiere asegurarse razonablemente de que las bolsas de monedas contienen el número de monedas que se dice en las etiquetas. Se requiere reducir la variación de peso lo más posible. 
+Se está probando una máquina empaquetadora nueva para ver si es menos variable que la máquina actual, en cuyo caso se comprará para reemplazar a la máquina vieja. La hipotesis nula es que ambas máquinas tienen la misma variabilidad, contra la alternativa de que tienen diferente varianza. 
+
+Los datos son los siguientes (en kilos)
+
+```{r}
+datos <- data.frame(peso = c(10.8, 11.1, 10.4, 10.1, 11.3, 10.8, 10.5, 11.0, 10.9, 10.8, 10.7, 10.8),
+                    maquina = factor(rep(c("V","N"),c(5,7))))
+```
+
+
+La prueba de Conover a mano: 
+
+```{r}
+n <- 5; m <- 7; N <- n+m
+tapply(datos$peso,datos$maquina,mean) # medias de cada grupo
+datos$desv <- c(datos$peso[1:5] - mean(datos$peso[1:5]),
+          datos$peso[6:12] - mean(datos$peso[6:12]))
+datos$rangos <- order(datos$desv)
+datos$rangos2 <- datos$rangos^2 # rangos al cuadrado
+Ts <- tapply(datos$rangos2,datos$maquina,sum) # estadisticas
+R2p <- mean(datos$rangos2)
+SR4 <- sum(datos$rangos2^2)
+# valor exacto
+T1 <- (Ts[1] - n*R2p)/sqrt(n*m/(N*(N-1))*SR4-n*m/(N-1)*R2p^2)
+# valor aproximado
+z <- (Ts[1]- n*(N+1)*(2*N+1)/6)/sqrt(m*n*(N+1)*(2*N+1)*(8*N+11)/180)
+pnorm(z, lower.tail = F) # pval de un lado.
+```
+
+Automatizada
+
+```{r}
+library(coin)
+conover_test(peso ~ maquina, data = datos, alternative ="two.sided")
+```
+
