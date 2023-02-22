@@ -167,3 +167,8 @@ wilcox.test(antes,despues,mu=0,alternative="two.sided",paired=T,conf.level=0.9,c
 ```
 
 ## Problema 9
+
+
+
+
+
