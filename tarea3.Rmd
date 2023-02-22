@@ -106,3 +106,64 @@ Está dado por:
 wilcox.test(x=X,y=Y,paired=T, mu=2, alternative="two.sided",conf.level=0.90,
               conf.int=T)
 ```
+
+
+## Problema 8
+
+### inciso a
+
+El curso es efectivo si las ventas después de tomar el curso son mayores que las que se daban antes de tomar el curso. Entonces la hipótesis nula se puede establecer en términos de la diferencia $D_{i} = despues_{i}- antes_{i}$ como $H_{0} : k_{0} = 0$ vs $H_{a} :k_{0}>0$.
+
+```{r}
+antes <- c(90,83,105,97,110,78)
+despues <- c(97,80,110,93,123,84)
+D <- despues - antes
+sort(D)
+```
+
+Entonces el número de valores que son mayores que la mediana es $K = 4$. Bajo $H_{0}$, la estadística $K$ se distribuye como \text{Bin}(6, 0.5). Entonces el p-value es:
+
+```{r}
+sum(dbinom(4:6,size = 6,prob=0.5))
+```
+
+Con lo cual no rechazamos y no tenemos evidencia de que el curso haya sido efectivo.
+
+### inciso b
+
+Con el nivel de confianza cercano al 90%, tenemos que hayar los límites de la dis- tribución binomial bajo la hipótesis nula para encontrar los índices de las respectivas estadísticas de orden. Entonces debemos acumular menos de 5% de lado izquierdo y menos de 5% de lado derecho. Como los valores de la binomial son
+
+
+```{r}
+pbinom(0:6, size = 6, prob = .5)
+round(pbinom(-0.01:6,6,0.5,lower.tail = F),6)
+```
+
+Con lo cual encontramos que los límites inferiores y superiores son respectivamente 1 y 5. Con los cuales presentaríamos el siguiente nivel de confianza: 
+
+```{r}
+sum(dbinom(1:5,6,0.5))
+(sort(D))
+```
+
+Y el intervalo es $(X_{(1)},X_{(6)})=(-4,13)$
+
+
+### Inciso c
+
+Ahora realizamos la prueba de Wilcox con signo
+
+```{r}
+wilcox.test(antes,despues,mu=0,alternative="greater",paired=T)
+
+```
+
+No rechazamos y obtenemos la misma conclusión de antes. Notar que debemos suponer que tenemos datos apareados.
+
+### Inciso d
+Y obtenemos el siguiente intervalo de confianza al 90%
+```{r}
+wilcox.test(antes,despues,mu=0,alternative="two.sided",paired=T,conf.level=0.9,conf.int=T)
+```
+
+## Problema 9
