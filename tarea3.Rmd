@@ -1,0 +1,60 @@
+## Problema 6
+
+### inciso a (prueba del signo)
+
+Para la prueba del signo, se define $K$ como el número de observaciones que son mayores a $k_{0} = 2$ donde $p = 0.5$. Bajo $H_{0}$, se espera que $K \sim \text{Bin}(7, 0.5)$. La región
+de rechazo es de la forma $K $geq l$ tal que $l$ es el número que satisface $\sum_{i=l}^{n} \binom{n}{i}(.5)^{n} \leq .1$  Viendo la distribución binomial con esos parámetros
+
+```{r}
+muestraUnica <- c(-3, -6, 1, 9, 4, 10, 12)
+
+restasMuestra <- ifelse(muestraUnica-2>0,1,0)
+(estadK <- sum(restasMuestra))
+
+pbinom(-.1:7, size = 7, prob = 0.5, lower.tail = F)
+```
+
+
+Con lo cual, notamos que $l=6$ y no se rechaza la hipótesis nula, ya que el estadístico de prueba $K$ no rebasa el límite en donde se rechazaría contundentemente.
+
+### inciso b (prueba del signo)
+
+El nivel de significancia exacto es
+
+```{r}
+pbinom(5, size = 7, prob = 0.5, lower.tail = F)
+```
+
+### inciso c (prueba del signo)
+
+En este ejercicio, los datos están apareados; con lo cual primero tomamos las diferencias de las observaciones y después calculamos el estadístico de prueba con estas diferencias como en el inciso anterior
+
+```{r}
+X <- c(126,131,153,125,119,102,116,163)
+Y <- c(120,126,152,129,102,105,100,175)
+(D <- X - Y)
+(K <- sum(D < 2)) #creando el estadístico de prueba
+```
+
+En esta parte del ejercicio, se tiene una hipótesis alternativa de dos colas, y los parámetros son $n=8$,$p=0.5$,$k_{0} =2$ y $\alfa=0.1$. Tenemos que buscar $r$ y $s$ tales que las sumas de las colas de la $\text{Bin}(8, 0.5) sean menores a $\alfa/2 = 0.05$. Las probabilidades binomiales son:
+
+```{r}
+pbinom(0:8, size = 8, prob = .5)
+```
+
+Con lo cual, el límite inferior es 2 y el límite superior es 6, para asegurar un nivel de significancia menor al $10$%. Y en este caso no volvemos a rechazar según nuestra prueba de hipótesis.
+
+## inciso d (prueba del signo)
+
+La probabilidad exacta tipo I es:
+
+```{r}
+pbinom(1,8,0.5,lower.tail=T) + (1 - pbinom(5,8,0.5))
+```
+
+### inciso e (prueba del signo)
+
+```{r}
+
+```
+

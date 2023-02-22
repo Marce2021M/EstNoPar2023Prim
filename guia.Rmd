@@ -1,0 +1,22 @@
+# Prueba del signo
+
+## Muestras
+
+Primero definimos las dos muestras a comparar
+```{r}
+muestras <- data.frame(indice = c(),
+                   muestra1 = c(),
+                   muestra2 = c())
+```
+
+La prueba a realizar es $H_0: P(+) = P(-)$ vs $H_a:P(+) > P(-)$, donde P() significa la proporción de casos postivos o negativos de $x_{i}-y_{i}$.
+
+```{r}
+restasMuestra <- ifelse(muestras$muestra1-muestras$muestra2<0,1,0)
+estadK <- sum(res)
+
+# Aproximación normal
+pnorm(estadK,nrow(muestras),0.5) # p-value. Valores grandes de K quiere decir que el + es más probable.
+```
+
+CHECAR CÓMO ES LA APORXIMACIÓN
