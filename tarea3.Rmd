@@ -40,21 +40,69 @@ En esta parte del ejercicio, se tiene una hipótesis alternativa de dos colas, y
 
 ```{r}
 pbinom(0:8, size = 8, prob = .5)
+round(pbinom(-0.01:8,8,0.5,lower.tail = F),6)
 ```
 
-Con lo cual, el límite inferior es 2 y el límite superior es 6, para asegurar un nivel de significancia menor al $10$%. Y en este caso no volvemos a rechazar según nuestra prueba de hipótesis.
+Con lo cual, el límite inferior es 1 y el límite superior es 7, para asegurar un nivel de significancia menor al $10$%. Y en este caso no volvemos a rechazar según nuestra prueba de hipótesis.
 
 ## inciso d (prueba del signo)
 
 La probabilidad exacta tipo I es:
 
 ```{r}
-pbinom(1,8,0.5,lower.tail=T) + (1 - pbinom(5,8,0.5))
+pbinom(1,8,0.5,lower.tail=T) + (1 - pbinom(6,8,0.5))
 ```
 
 ### inciso e (prueba del signo)
 
-```{r}
+Utilizaremos las estimaciones por regiones vistas en el tema de cuantiles. Con lo cual la región con confianza al 90% al menos es:
 
+```{r}
+(sort(D))
 ```
 
+$(X_{(2)},X_{(7)})=(-4,16)$
+
+### ### inciso a (Wilcox con signo)
+
+Aplicando la prueba de rangos con signos de Wilcoxon, usamos la función wilcox.test con los parámetros adecuados:
+
+```{r}
+x <- c(-3,-6,1,9,4,10,12)
+  wilcox.test(x, mu=2, alternative="greater",conf.level=0.9)
+```
+
+### Inciso b (wilcox)
+Para calcular la probabilidad exacta del error tipo I usaremos la siguiente función que nos devuelve las probabilidades para cada punto del soporte de la distribución del estadístico de prueba:
+
+```{r}
+1 - psignrank(q = 0:28, n = 7)
+```
+
+Con lo cual notamos que para $t\geq 22$ se alcanzan las condiciones del error tipo I para funciones discretas y vemos que error tipo I exactamente es 0.0390625
+
+### Inciso c (wilcox)
+
+```{r}
+wilcox.test(x=X,y=Y,paired=T, mu=2, alternative="two.sided",conf.level=0.90,
+              conf.int=T)
+```
+
+Con lo cual no se rechaza la hipótesis
+
+### Inciso d (wilcox)
+
+```{r}
+1 - psignrank(q = 0:36, n = 8)
+```
+
+Con lo cual notamos que para $t\geq 28$ se alcanzan las condiciones del error tipo I para funciones discretas y vemos que error tipo I exactamente es 0.09765625
+
+### Inciso e (wilcox)
+
+Está dado por:
+
+```{r}
+wilcox.test(x=X,y=Y,paired=T, mu=2, alternative="two.sided",conf.level=0.90,
+              conf.int=T)
+```
