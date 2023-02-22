@@ -11,12 +11,54 @@ muestras <- data.frame(indice = c(),
 
 La prueba a realizar es $H_0: P(+) = P(-)$ vs $H_a:P(+) > P(-)$, donde P() significa la proporción de casos postivos o negativos de $x_{i}-y_{i}$.
 
+
+## prueba de hipótesis aproximada
 ```{r}
 restasMuestra <- ifelse(muestras$muestra1-muestras$muestra2<0,1,0)
-estadK <- sum(res)
+estadK <- sum(restasMuestra)
 
 # Aproximación normal
 pnorm(estadK,nrow(muestras),0.5) # p-value. Valores grandes de K quiere decir que el + es más probable.
 ```
 
-CHECAR CÓMO ES LA APORXIMACIÓN
+CHECAR CÓMO ES LA APORXIMACIÓN normal
+
+## prueba de hipótesis exacta
+
+Vamos a calcular la función potencia para un caso muy particular de la prueba del signo.
+
+Supongan que queremos probar la hipótesis de una cola $H_0: M=28$ vs $H_a: M >28$.
+La región de rechazo es de la forma $R_{\alpha}=\{k | \sum_{i=k}^n {n \choose i}(1/2)^n \leq \alpha \}$. Escogemos como límite de la región el valor de $k$ entero más pequeño:
+
+```{r}
+# para este caso con una muestra de 16 y significancia alfa mostramos todos los valores de la función de "supervivencia"
+n <- 16
+alfa <- 0.05
+round(pbinom(-0.01:n,n,0.5,lower.tail = F),6)  # empiezo de negativo porque lower.tail=F da P(X>x)
+```
+
+Una vez escogido el $k$, se realiza la prueba de hipótesis.
+
+## función potencia
+
+Si se quiere sacar la función potencia de forma exacta se realiza lo siguiente: 
+
+```{r}
+k <- 12 #utilizamos la k encontrada anteriormente
+n <- 16
+Po <- function(th,n=16){pbinom(k-1,n,th,lower.tail = F)}
+Po <- Vectorize(Po)
+curve(Po,from = 0, to = 1,n=200)
+```
+
+
+Si se quiere sacar la función potencia de forma aproximada se realiza lo siguiente: 
+
+```{r}
+k <- 12 #utilizamos la k encontrada anteriormente
+n <- 16
+Po <- function(th,n=16){pnorm((k-n*th-.5)/sqrt(n*th*(1-th)),lower.tail = F)}
+Po <- Vectorize(Po)
+curve(Po,from = 0, to = 1,n=200)
+
+```
