@@ -168,6 +168,238 @@ wilcox.test(antes,despues,mu=0,alternative="two.sided",paired=T,conf.level=0.9,c
 
 ## Problema 9
 
+```{r}
+X <- c(7.2, 8.3, 5.6, 7.4, 7.8, 5.2, 9.1, 5.8) #datos de la variable aleatoria X
+```
+
+La variable aleatoria en este ejercicio es $X$ = número de horas de sueño de los mexicanos adultos. Traduciendo, el ejercicio nos está pidiendo:
+
+a) $H_{0} ∶\text{med}(X)=7.5$ vs $H_{a} ∶\text{med}(X)<7.5$,porque lo que se quiere probar es que los mexicanos hoy duermen menos que en el pasado. En este caso, se puede utilizar la prueba del signo o bien, la prueba del signo con rango de Wilcoxon.
+Si usamos la prueba del signo. En donde si rechazamos estaríamos concluyendo que las personas en México están durmiendo menos. Para probar esto conocemos dos pruebas: Wilcoxon de rangos con signo y la prueba del signo. 
+
+En la prueba de Wilcoxon se asume que la distribución es simétrica y se toma en cuenta el nivel de distancia que hay con respecto a la mediana. En cambio, la prueba del signo es más general en el sentido que no asume que la distribución es simétrica.
+
+Ahora dado que en cierta forma sí nos interesa la distancia con repecto a la mediana (ya que eso nos confirmaría más si los mexicanos duermen menos actualmente) entonces la prueba de Wilcoxon estaría más adecuada para los supuestos, pero tenemos sospechas que la distribución de horas que duermen las personas no es simétrica y está sesgada a la izquierda. Con lo cual haremos las dos pruebas y en caso de empate preferiremos la prueba del signo, con ciertas sospechas.
+
+Primero haremos Wilcoxon:
+```{r}
+wilcox.test(x = X, mu = 7.5, alternative = "less")
+
+```
+
+En esta prueba no rechazamos.
+
+Ahora realizamos la prueba del signo: 
+
+```{r}
+restasMuestra <- ifelse(X-7.5>0,1,0)
+
+#estadístico
+(estadK <- sum(restasMuestra))
+
+n <- 8
+alfa <- 0.05
+
+# p-value
+round(pbinom(estadK,n,0.5),6) 
+```
+
+No rechazamos tampoco. Y se concluye que en general los mexinos no duermen menos horas.
+
+b) De aquí procedemos a realizar la siguiente prueba para determinar si el 5% de la población que menos duerme ha disminuido sus horas de dormir.
+
+$H_{0}:p_{.05}=6$ vs $H_{a}:p_{.05}<6$
+En este caso solo podemos usar la prueba del signo:
+
+
+```{r}
+restasMuestra <- ifelse(X-6>0,1,0)
+
+#estadístico
+(estadK <- sum(restasMuestra))
+
+n <- 8
+
+# p-value
+round(pbinom(estadK,n,0.95),6) #en nuestro caso debemos recordar que como hemos calculado las D_{i} entonces nuestros estadístico se distribuye Binom(n,1-p) donde p es el percentil considerado
+```
+
+En este caso sí se rechaza la hipótesis nula. Y concluimos que el 5% de la población sí está durmiendo menos.
+
+
+c) Por último, plateamos el problema de saber si el 5% de la población que más duerme está durmiendo menos. Para esto realizamos la siguiente prueba de hipótesis: $H_{0}:p_{.95}=9$ vs $H_{a}:p_{.95}<9$:
+
+```{r}
+p <- 0.95 # percentil considerado.
+(K <- sum(X > 9))
+
+round(pbinom(K,8, .05),5)
+
+```
+
+
+Con lo cual no rechazamos
+
+**Fecha de entrega: miércoles 22 de febrero de 2023**
+
+## 1. 
+Se mide la altura de los nidos (en metros) de dos especies de pájaros carpinteros. Probar por diferencias entre las alturas de los nidos usando la prueba de suma de rangos de Wilcoxon
+
+```{r}
+especie_A <- c(5.1, 9.4, 7.2, 8.1, 8.8)
+especie_B <- c(2.5, 4.2, 6.9, 5.5, 5.3)
+wilcox.test(especie_A, especie_B)
+```
+Observamos que con un nivel de significancia de $\alpha = 0.05$, no rechazamos la hipótesis nula (p = 0.055). Por lo que 
+no tenemos evidencia suficiente para afirmar que son distintas. 
+
+## 2. 
+Crear un conjunto de datos ficticio donde la prueba de la suma de rangos de Wilcoxon y la prueba $t$ que lleve a diferentes conclusiones al 5% de significancia. ( _Hint:_ Tratar un conjunto de datos  en los que un tratamiento tiene observaciones muy grandes en comparación con todas las otras observaciones en el otro tratamiento).
+```{r}
+# Vamos a tomar dos tratamientos de VIH para disminución de la carga viral 
+tratA <- c(1626, 144, 110, 1710, 619, 1010, 2530, 232, 2418, 637, 382, 40, 772, 594, 776)
+tratB <- c(16200 , 14400 , 2531, 13400, 5246 , 17945, 17667, 9205, 908, 73285, 1167, 174107, 25600)
+
+# Prueba de suma de rangos de wilcoxon y la prueba t 
+wilcox.test(tratA, tratB)
+t.test(tratA, tratB)
+```
+
+
+## 3.
+Considerar la distribución de la estadística $U$ de Mann-Withney bajo la hipótesis nula de que los dos tratamientos tienen la misma distribución. Mostrar que $P(U \leq t) = P(U \geq mn-t)$. Concluir que los valores críticos inferior y superior para una prueba a nivel de significancia $\alpha$ satisface la relación $U_{upper} = mn - U_{lower}$.
+
+## 4. 
+Los datos que se muestran son los registros de heridas en cabeza para dummies del lado del conductor en pruebas de choques de varios coches. Probar para diferencias entre los grupos de tipo de vehículo usando la prueba de Kruskal-Wallis. Separa las medias usando las versiones de rangos de los criterios LSD y HSD.
+
+```{r}
+datos <- data.frame(
+  casos = c(791, 846, 1024, 1007, 399, 1279, 407, 1656, 1036, 1226,
+             423, 541, 517, 1328, 471, 533, 863, 786, 551, 1068,
+             551, 1068, 757, 1114, 920, 1809, 1238, 918, 1339, 603,
+             712, 435, 298, 733, 1200, 1701, 707, 790, 800, 480,
+             1345, 1269, 1477, 758, 996, 1306, 968, 943, 1026, 1564,
+             985, 1074, 742, 985, 1342, 1184, 977, 1465, 892, 1074,
+             805, 2613, 903, 949, 1183, 1051, 1387, 1320, 1434, 1603),
+  tipo_auto = factor(rep(c("Compacto", "Pesado", "Ligero", "Medio", "MPV", 
+                           "Pickup", "Van"),rep(10,7))))
+# Vamos a generar boxplots 
+with(datos, plot(casos ~ tipo_auto))
+# Pruebas de comparación 
+kruskal.test(casos ~ tipo_auto, data = datos)
+
+pairwise.wilcox.test(datos$casos, datos$tipo_auto,p.adjust.method = "bonf")
+
+```
+Al realizar la prueba de Wilcoxon de rangos, observamos que el único grupo que sí parece ser distinto es el de Van y el Pesado (p = 0.044). 
+
+# Kruskal-Wallis. Separa las medias usando las versiones de rangos de los criterios LSD y HSD ? 
+
+## 5. 
+Para los datos en la siguiente tabla, obtener la distribución de permutación de la media de las diferencias
+
+```{r}
+trt1 <- c(100, 250, 50, 80)
+trt2 <- c(112, 240, 58, 82)
+
+# 1. Tomar todas las diferencias y ordenarlas 
+d <- outer(trt1, trt2, "-")
+dim(d) <- NULL 
+d_ord <- sort(d)
+median(d) # Hodges-Lehman
+
+# 2. Calcular la mediana de las diferencias 
+d0 <- expand.grid(trt1 ,trt2)
+(U0 <- sum(d0$Var1 < d0$Var2))  # U0 observada
+
+B <- 200000
+U <- numeric(B)
+for(i in 1:B){
+  x <- sample(c(trt1, trt2),6)
+  y <- setdiff(c(trt1, trt2),x)
+  d <- expand.grid(x,y)
+  U[i] <- sum(d$Var1 < d$Var2)
+}
+hist(U)
+
+# 3. Encontrar los cuantiles de la distirbución U 
+
+```
+
+## 6. 
+Respondan las partes (a) hasta (e) de esta pregunta utilizando (i) la prueba del signo y (ii) la prueba del rango con signo de Wilcoxon:
+
+- a. Probar a un nivel de significancia que no exceda 0.10 la hipótesis nula $H_0:M=2$ vs. $H_a:M>2$, donde $M$ es la mediana de una población simétrica continua de la cual se extrae la muestra aleatoria:
+
+```{r}
+a <- c(-3, -6, 1, 9, 4, 10, 12)
+```
+
+- b. Dar la probabilidad exacta de un error tipo I en (a).
+- c. Sobre la base de la siguiente muestra aleatoria de pares $(X,Y)$:
+
+```{r}
+X <- c(126 , 131, 153, 125, 119, 102, 116, 163)
+Y <- c(120 , 126, 152, 129, 102, 105, 100, 175)
+```
+
+Probar a un nivel de significancia que no exceda 0.10 la hipótesis nula $H_0:M=2$ contra $H_a:M \neq 2$, donde $M$ es la mediana de una población con distribución continua y simétrica de diferencias $D = X-Y$.
+
+- d. Dar la probabilidad exacta del error tipo I en (c).
+
+- e. Dar el intervalo de confianza correspondiente a la prueba en (c).
+
+## 7. 
+Probar que la estadística del rango con signo de Wilcoxon $T^+ - T^-$ basada en un conjunto de observaciones no cero $X_1, \ldots, X_n$ puede ser escrita en la forma:
+\[ \sum_{1\leq i \leq j \leq n}sgn(X_i+X_j) \] donde $sgn(x)=I(x>0)-I(x<0)$.
+
+## 8. 
+Con la finalidad de probar la efectividad de un programa de entrenamiento de ventas, se seleccionan 6 vendedores al azar para tomar el curso:
+
+```{r}
+ventas_antes <- c(90, 83, 105, 97, 110, 78)
+ventas_despues <- c(97, 80, 110, 93, 123, 84)
+```
+
+Los datos son las ventas brutas de los vendedores antes y después de tomar el curso.
+
+- a. Establecer las hipótesis nula y alternativa y usar la prueba del signo para encontrar un $p-$valor relevante a la pregunta de si el curso es efectivo.
+
+- b. Usar la prueba del signo a un nivel de confianza cercano al 90\% para encontrar un intervalo de confianza  estimado de dos lados de la diferencia de medianas en ventas (después - antes). Dar el nivel exacto.
+
+- c. Usar la prueba del rango con signo para hacer (a). ¿Qué supuesto se debe hacer?
+- d. Usar la prueba del rango con signo para hacer (b).
+
+## 9. 
+Un estudio previo reportó que la cantidad mediana de sueño de los mexicanos adultos es 7.5 horas de las 24 con una desviación estándar de 1.5 horas y que 5\% de la población  duerme 6 o menos horas mientras que otro 5\%  duerme 9 o más horas.
+
+Una muestra actual de 8 adultos reporta que sus horas promedio de sueño por cada 24 horas son $7.2, 8.3, 5.6, 7.4, 7.8, 5.2, 9.1$ y $5.8$ horas.  Usar el procedimiento estadístico apropiado para determinar si los mexicanos adultos  duermen menos hoy de lo que hicieron en el pasado y justificar su elección. 
+Deben al menos probar la hipótesis concerniente a los cuantiles de orden $0.05, 0.50,$ y $0.95$.
+
+
+## 10.
+El gobierno del `Peje` quiere comprar pintura fluorescente para pintar el cerro de Santa Lucía y que los aviones no se estrellen al aterrizar. La elección se ha reducido a dos marcas de pintura de proveedores probos: A: `Bartlett Paint Inc.` y B: `El tigre somos todos`.  Se pintan 20 rayas a la puntita del cerro (que ahora parece tigre). Diez son pintadas con A y las otras 10 rayas son pintadas con B, en orden aleatorio. Las rayas son inspeccionadas 6 meses después por la Secretaria de la Función Pública (la camarada Sandoval) y ordenadas de acuerdo al desgaste de la pintura. Los resultados son los siguientes:
+
+```{r}
+Pintura_A <- c(2, 3, 4, 6, 8, 9, 10, 12, 13, 14 )
+Pintura_B <- c(1, 5, 7, 11, 15, 16, 17, 18, 19, 20)
+
+datos <- data.frame(
+  desgaste = c(2, 3, 4, 6, 8, 9, 10, 12, 13, 14 , 1, 5, 7, 11, 15, 16, 17, 18, 19, 20),
+  tipo = factor(rep(c("A", "B"),rep(10,2))))
+
+
+with(datos, plot(desgaste ~ tipo))
+
+
+wilcox.test(Pintura_A, Pintura_B, alternative = "less")
+
+```
+
+¿Hay alguna diferencia significativa entre las dos marcas de pintura?
+Observamos que, después de aplicar la prueba de Wilcoxon para comparaciones de medias, 
+rechazamos la hipótesis nula que afirma que hay igualdad de medias (p = 0.037). Por lo que concluímos que la media del desgaste de la 
+pintura B es mayor, por lo que concluímos que la puntura A es más óptimna. 
 
 
 
