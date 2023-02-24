@@ -3,15 +3,19 @@ title: "Ejercicios de Estadísticas Basadas en Rangos"
 author: "Jorge de la Vega"
 date: "2023/02/17"
 format: 
-    html:
-      embed-resources: true
-      page-layout: full
+  html:
+    fig-width: 13
+    fig-height: 7
+    code-fold: true
+    embed-resources: true
+    page-layout: full
 editor_options: 
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = T, comment = NULL)
+knitr::opts_chunk$set(echo = T, comment = NULL,
+                      fig.align = "center")
 ```
 
 # Ejercicios generales
@@ -21,7 +25,7 @@ knitr::opts_chunk$set(echo = T, comment = NULL)
 1. $U(0,1)$
 2. $N(0,1)$
 3. $exp(2)$
-4. $Bin(10,4)$
+4. $Bin(10,0.4)$
 5. $t_{(1)}$
 
 y sus respectivos rangos, para tamaños de muestra 5,10,50,100 y 1000.
@@ -29,14 +33,82 @@ Hacer una tabla con los resultados. ¿Qué interpretación le dan?
 
 Hacer lo mismo, pero usar como rangos scores normales: es decir, si $x\sim F$, transformar $R(x) = \Phi(x)$.
 
-2. El ITAM está preocupado por el númer de horas-persona que se pierden al mes debido a la falta de un área de apoyo psicológico y por eso desarrolló un programa de apoyo integral. Los datos que se tienen corresponden al número de horas-persona perdidos al mes antes y después del programa en 8 grupos de seguimiento. ¿Ha habido algún beneficio, el programa ha sido efectivo en la reducción de tiempo debido a ansiedades? Supongan que la distribución es simétrica
+**Solución**
 
-```r
-Antes <- c(51.2,46.5,24.1,10.2,65.3,92.1,30.3,49.2)
+```{r}
+n <- 100
+fn <- function(x){
+  muestra <- switch(x,
+         "unif" = runif(n),
+         "normal" = rnorm(n),
+         "exp2" = rexp(n,rate = 2),
+         "bin" = rbinom(n,10,0.4),
+         "t1" = rt(n,1))
+  return(muestra)
+}
+par(mfrow=c(1,5))
+for(i in c("unif", "normal", "exp2", "bin", "t1")){
+  set.seed(10)
+  x <- fn(i)
+  R <- rank(x)
+  plot(x,R, main = paste0("Dist=", i, ": ", "r=", round(cor(x,R),4)))
+}
+```
+
+
+Utilizando ahora scores normales en lugar de los rankings: 
+
+```{r}
+par(mfrow=c(1,5))
+for(i in c("unif", "normal", "exp2", "bin", "t1")){
+  set.seed(10)
+  x <- fn(i)
+  R <- pnorm(x)
+  plot(x,R, main = paste0("Dist=", i, ": ", "r=", round(cor(x,R),4)))
+}
+
+```
+
+En ambos casos se puede ver que la correlación es alta entre las variables originales y sus rangos. 
+
+<p style="text-align:right;background-color:yellow"> $\blacksquare$ </p>
+
+2. El ITAM está preocupado por el número de horas-persona que se pierden al mes debido a la falta de un área de apoyo psicológico y por eso desarrolló un programa de apoyo integral. Los datos que se tienen corresponden al número de horas-persona perdidos al mes antes y después del programa en 8 grupos de seguimiento. ¿Ha habido algún beneficio, el programa ha sido efectivo en la reducción de tiempo debido a ansiedades? Supongan que la distribución es simétrica
+
+```{r}
+Antes   <- c(51.2,46.5,24.1,10.2,65.3,92.1,30.3,49.2)
 Despues <- c(45.8,41.3,15.8,11.1,58.5,70.3,31.6,35.4)
 ```
 
 Calcular un intervalo de confianza del 90%
+
+**Solución**
+En este ejemplo, los datos están apareados de manera natural. Podemos aplicar la prueba de Wilcoxon de rangos con signos para determinar el intervalo de confianza. Lo que se quiere probar es que ha habido un beneficio o lo que es lo mismo, que el programa ha sido efectivo, o bien, en términos de hipótesis: 
+$$H_0: d \leq 0 \mbox{ versus } H_a: d > 0$$ 
+Si la hipòtesis nula es cierta, entonces las diferencias de `Después - Antes` serían principalmente negativas, o lo que es equivalente, la suma de los rangos positivos debería ser relativamente pequeña. 
+
+```{r}
+d <- Despues - Antes
+sign(d)*rank(abs(d))
+```
+
+Entonces, manualmente, $W^+ = 3$ y $W^-=33$ Podemos calcular el p-value de este caso con la distribución de $W^+$:
+
+```{r}
+psignrank(3,8,lower.tail = F)
+```
+
+El intervalo de confianza con lo que hemos visto, se puede calcular ya sea con la distribución exacta, la distribución aproximada, con pruebas de permutación o con la prueba del signo sobre las diferencias. 
+
+La prueba de Wilcoxon nos da: 
+
+```{r}
+wilcox.test(x = Despues,
+            y = Antes, paired = T, mu=0, alternative = "greater", conf.int = T, conf.level = 0.9)
+```
+
+<p style="text-align:right;background-color:yellow"> $\blacksquare$ </p>
+
 
 3. Prueba de Mann-Whitney para dos muestras independientes
 
@@ -56,14 +128,26 @@ Calcular un intervalo de confianza del 90%
 
 El hospital de enfermedades respiratorias recibe 48 pacientes que pueden tener coronavirus de dos zonas: 12 son de Ecatepec y 36 son de la Colonia del Valle. Se hace una prueba para ver si la capacidad reespiratoria de los pacientes de Ecatepec es mejor que los de la colonia del Valle. Una puntuación baja indica que la probabilidad de tener coronavirus es del 99%.
 
-```r
+```{r}
 p_Ecatepec <- c(14.8,7.3,5.6,6.3,9.0,4.2,10.6,12.5,12.9,16.1,11.4,2.7)
 p_delValle <- c(12.7,14.2,12.6,2.1,17.7,11.8,16.9,7.9,16.0,10.6,5.6,
                 5.6,7.6,11.3,8.3,6.7,3.6,1.0,2.4,6.4,9.1,6.7,18.6,3.2,
                 6.2,6.1,15.3,10.6,1.8,5.9,9.9,10.6,14.8,5.0,2.6,4.0)
 ```
 
-Se quiere probar $H_0:$ los pacientes de Ecatepec no tienden a tener mejor capacidad respiratoria que los pacientes de la colonia del Valle, vs. $H_a:$ los pacientes de Ecatepec tienden a tener menores capacidades respiratorias que los pacientes de la colonia del Valle.
+Se quiere probar $H_0:$ los pacientes de Ecatepec no tienden a tener mejor capacidad respiratoria que los pacientes de la colonia del Valle, vs. $H_a:$ los pacientes de Ecatepec tienden a tener mejores capacidades respiratorias que los pacientes de la colonia del Valle.
+
+**Solución**
+
+Otra vez podemos aplicar la prueba de suma de rangos de Wilcoxon. En este caso los datos no están apareados y son dos muestras independientes: 
+
+```{r}
+wilcox.test(x = p_Ecatepec, y = p_delValle, alternative = "less")
+```
+
+Entonces no se tiene evidencia estadística suficiente para rechazar la hipótesis nula.
+
+<p style="text-align:right;background-color:yellow"> $\blacksquare$ </p>
 
 
 # Ejercicios correlación y regresión.
@@ -74,7 +158,9 @@ Se quiere probar $H_0:$ los pacientes de Ecatepec no tienden a tener mejor capac
 ado <- read.csv("https://raw.githubusercontent.com/jvega68/EA3/master/ADO_AVION_MDA2009.csv")
 ```
 
-1. Calcula la correlación de Pearson $\rho$, Spearman $\rho$ y Kendall $\tau$ sobre estos datos, comparar. Verificar que $\rho_S=1-\frac{6T}{n(n^2-1)}$ donde $T=\sum_{i=1}^n[R(X_i)-R(Y_i)]^2$.
+  1a. Calcula la correlación de Pearson $\rho$, Spearman $\rho$ y Kendall $\tau$ sobre estos datos, comparar. Verificar que $\rho_S=1-\frac{6T}{n(n^2-1)}$ donde $T=\sum_{i=1}^n[R(X_i)-R(Y_i)]^2$.
+
+**Solución**
 
 ```{r}
 n <- length(ado$ADO) #número de observaciones
@@ -85,7 +171,13 @@ n <- length(ado$ADO) #número de observaciones
 ```
 
 
-2. Realiza la prueba de independencia de $X$ y $Y$, en donde la alternativa es de dos colas. ¿Cuál es la conclusión?
+
+# Segundo parcial (no viene ahora)
+
+
+  1b. Realiza la prueba de independencia de $X$ y $Y$, en donde la alternativa es de dos colas. ¿Cuál es la conclusión?
+
+**Solución**
 
 ```{r}
 # p-value
@@ -97,7 +189,7 @@ cor.test(ado$ADO,ado$AVION, method = "spearman")
 
 La prueba de Kendall se basa en la estadística de las concordancias y discordancias entre observaciones de cada par. Hay un total de ${n \choose 2}=`r choose(n,2)`$ pares de puntos a comparar. El coeficiente de Kendall se define como
 
-\[ \tau = \frac{N_c -N_d}{n(n-1)/2} \]
+$$\tau = \frac{N_c -N_d}{n(n-1)/2}$$
 
 donde $N_c$ es el número de pares concordantes y $N_d$ es el número de pares discordantes. La estadística $T = N_c - N_d$ tiene media 0 y varianza $\frac{18}{n(n-1)(2n+5)}$  bajo $H_0: \tau=0$. 
 
@@ -106,9 +198,11 @@ cor.test(ado$ADO, ado$AVION, method = "kendall")
 ```
 
 
-3. Probar $H_0:\beta_0=0.9$ vs. $H_1:\beta_0>0.9$ tomando $Y$ como los pasajeros de avión, usando la correlación de Spearman (no haciendo ningún supuesto de normalidad en la regresión).  
+  1c. Probar $H_0:\beta_0=0.9$ vs. $H_1:\beta_0>0.9$ tomando $Y$ como los pasajeros de avión, usando la correlación de Spearman (no haciendo ningún supuesto de normalidad en la regresión).  
 
 Noten que el método de mínimos cuadrados no asume normalidad, es simplemente un método de optimización.
+
+**Solución**
 
 El procedimiento es:
 
@@ -124,7 +218,7 @@ u <- ado$AVION - 0.9*ado$ADO
 cor.test(ado$ADO,u,method = "spearman")
 ```
 
-4. Calcular un intervalo no paramétrico para la pendiente.
+  1d. Calcular un intervalo no paramétrico para la pendiente.
 
 ```{r}
 # Calculamos las pendientes entre cada par de puntos 
@@ -157,7 +251,10 @@ Entonces el intervalo para la pendiente se obtiene a partir de los cuantiles una
 S_ord[lims-1]
 ```
 
-5. **Regresión Monotónica**. En la regresión monotónica, no suponemos que el modelo sea una linea recta, ni normalidad, sólo suponemos que $E(Y|X)$ es no decreciente o no creciente. Hay que seguir el algorimo dado en clase, que se pone aquí para consulta rápida:
+<p style="text-align:right;background-color:yellow"> $\blacksquare$ </p>
+
+
+2. **Regresión Monotónica**. En la regresión monotónica, no suponemos que el modelo sea una linea recta, ni normalidad, sólo suponemos que $E(Y|X)$ es no decreciente o no creciente. Hay que seguir el algorimo dado en clase, que se pone aquí para consulta rápida:
 
 Los supuestos de este modelo son:
 
@@ -173,20 +270,20 @@ b. Estimación de la regresión completa de $Y$ en $X$.
   
 1. Se obtienen los rangos $R(X_i)$ y $R(Y_i)$, usando rangos promedios en caso de empates.
 2. Encontrar mínimos cuadrados ordinarios en los rangos: 
-\[ b_2 = \frac{\sum_{i=1}^nR(X_i)R(Y_i) -n(n+1)^2/4 }{\sum_{i=1}^nR(X_i)^2 -n(n+1)^2/4}\]
+$$b_2 = \frac{\sum_{i=1}^nR(X_i)R(Y_i) -n(n+1)^2/4 }{\sum_{i=1}^nR(X_i)^2 -n(n+1)^2/4}$$
 y 
-\[ a_2 = (1-b_2)(n+1)/2 \]
+$$a_2 = (1-b_2)(n+1)/2$$
 3. Se obtiene un rango para $x_0$ como sigue:
 
   - Si $x0$ es uno de los valores observados de $X_i$, se hace $R(x_0)$ igual al rango de $X_i$.
   - Si $X_i < x_0 < X_j$, se interpola:
-    \[ R(x_0) = R(X_i) + \frac{x_0-X_i}{X_j-X_i}[R(X_j)-R(X_i)] \]
+    $$R(x_0) = R(X_i) + \frac{x_0-X_i}{X_j-X_i}[R(X_j)-R(X_i)]$$
     Puede ser que este rango no es un entero.
   - Si $x_0$ cae fuera del mínimo o máximo de los rangos, no se puede extrapolar.
 
 4. Sustituye $R(X_0)$ en la ecuación de mínimos cuadrados para obtener $R(y_0)$.
 5. Se convierte $R(y_0)$ en un estimado $\hat{E(Y|X=x_0)}$ ya sea que coincida con uno de los valores $R(Y_i)$ o bien por interpolando entre sus rangos vecinos:
-  \[ \widehat{E(Y|X=x_0)} = Y_i + \frac{R(y_0)-R(Y_i)}{R(Y_j)-R(Y_i)}(Y_j-Y_i) \]
+  $$\widehat{E(Y|X=x_0)} = Y_i + \frac{R(y_0)-R(Y_i)}{R(Y_j)-R(Y_i)}(Y_j-Y_i)$$
 6. Si $R(y_0)$ es mayor que el mayor de los rangos observados, se toma $\widehat{E(Y|X=x_0)}=\max\{R(Y_i)\}$. Simétricamente en el caso opuesto.
 
 
@@ -196,7 +293,7 @@ El siguiente procedimiento permite obtener toda la curva ajustada:
 
 1. Para cada $X_i \in (X_{(1)},X_{(n)})$, se utiliza el procedimiento anterior para obtener un estimado de $E(Y|X)$
 2. Para cada rango de $Y$, $R(Y_i)$, encontrar el rango estimado de $X_i$, $\hat{R}(X_i)$:
-\[ \hat{R}(X_i) = (R(Y_i)-a_2)/b_2 \]
+$$\hat{R}(X_i) = (R(Y_i)-a_2)/b_2$$
 3. Convierte cada $\hat{R}(X_i)$ a un estimado $\hat{X}_i$ por interpolación si es posible, como se indicó antes.
 4.  Graficar los pares $(X_i,\hat{Y}_i), (\hat{X}_i,Y_i)$ y conectarlos. Todos los puntos deben ser monótincos crecientes, si $b_2>0$ o monotónicos decrecientes si $b_2<0$.
 
@@ -271,12 +368,19 @@ y <- ado$AVION
 reg.isotonica(x, y, graf = T)
 ```
 
-6. 17 frascos de jugo de uva se utilizaron para hacer un experimento y contar el número de días en que el jugo se convierte en vino como una función de cuánta azúcar se le agrega al jugo. Varias cantidades de azúcar, desde 0 hasta 10 porciones, se añadieron a los frascos, y se revisaron los jarros cada día para ver si la conversión ya se había completado. Se desea obtener una regresión del número de días a fermentación versus el número de porciones de azúcar.
+
+
+ 17 frascos de jugo de uva se utilizaron para hacer un experimento y contar el número de días en que el jugo se convierte en vino como una función de cuánta azúcar se le agrega al jugo. Varias cantidades de azúcar, desde 0 hasta 10 porciones, se añadieron a los frascos, y se revisaron los jarros cada día para ver si la conversión ya se había completado. Se desea obtener una regresión del número de días a fermentación versus el número de porciones de azúcar.
   
+**Solución** 
+
 ```{r}
 x <- c(0, 0.5, 1, 1.8, 2.2, 2.7, 4, 4, 4.9, 5.6, 6, 6.5, 7.3, 8, 8.8, 9.3, 9.8)
 y <- c(31, 31, 31, 28, 24, 19, 17, 9, 12, 12, 6, 8, 4, 5, 6, 4, 6)
 reg.isotonica(x, y)
 ```
 
+
+
+<p style="text-align:right;background-color:yellow"> $\blacksquare$ </p>
 

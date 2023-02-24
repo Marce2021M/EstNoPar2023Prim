@@ -52,13 +52,3 @@ curve(Po,from = 0, to = 1,n=200)
 ```
 
 
-Si se quiere sacar la función potencia de forma aproximada se realiza lo siguiente: 
-
-```{r}
-k <- 12 #utilizamos la k encontrada anteriormente
-n <- 16
-Po <- function(th,n=16){pnorm((k-n*th-.5)/sqrt(n*th*(1-th)),lower.tail = F)}
-Po <- Vectorize(Po)
-curve(Po,from = 0, to = 1,n=200)
-
-```
