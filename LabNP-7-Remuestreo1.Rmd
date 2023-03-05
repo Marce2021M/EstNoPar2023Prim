@@ -1,0 +1,258 @@
+---
+title: "Lab9-Remuestreo"
+author: "Jorge de la Vega"
+date: "3 de marzo de 2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", comment = NULL)
+```
+
+```{r}
+# Paquete con datos de un libro: "Mathematical Statistics with Resampling in R"
+library(bootstrap) 
+```
+
+## Ejemplos de Jackknife
+
+1. Datos de calidad de riñón: Se tienen medidas de 157 voluntarios sanos (donadores potenciales) y las variables son:
+
+- `age`: edad del voluntario
+- `tot`: medida compuesta global de la función del riñón.
+
+Usualmente la función del riñón declina con la edad, y podemos ajustar un modelo de regresión aproximado.
+
+```{r}
+kidney <- read.delim("https://hastie.su.domains/CASI_files/DATA/kidney.txt",header = T, sep ="")
+plot(kidney, pch = 19, col ="blue", main = "Función del riñón en términos de la edad")
+abline(lm(tot ~ age, data = kidney), col = "green4", lwd =2)
+```
+
+Se quiere estimar el coeficiente de correlación entre `age` y `tot`, es la estadística a considerar, y calcular su error estándar. 
+
+```{r}
+n <- nrow(kidney)
+thetahat <- cor(kidney)[1,2]
+thetamenosi <- numeric(n)
+for(i in 1:n) thetamenosi[i] <- cor(kidney[-i,])[1,2]
+bjack <- n*(mean(thetamenosi) - thetahat) # estimador del sesgo
+thetajack <- thetahat - bjack  # estimador corregido por sego
+thetatilde <- n*thetahat - (n-1)*thetamenosi 
+se <- sqrt(var(thetatilde)/n) # error estándar del estimador. 
+```
+
+Usando la función jackknife del paquete `bootstrap`.
+
+```{r}
+Tn = function(x, datos){cor(datos[x,1],datos[x,2])}
+jackknife(1:n,theta = Tn, kidney)
+```
+
+2. Eigenvalores de una matriz de correlación. En este ejercicio estimaremos una estadística más compleja: la proporción de varianza explicada en un ejercicio de componentes principales. Tomamos datos de calificaciones de 89 estudiantes en 5 materias, dos de ellas hacen exámenes a libro cerrado y tres a libro abierto.
+
+La estadística a considerar es $\theta = \frac{\lambda_1}{\sum_{i=1}^5 \lambda_i}$, la proporción de variación explicada por la primera componente principal.
+
+```{r}
+datos <- read.delim("https://raw.githubusercontent.com/jvega68/EA3/master/datos/Mardia_Kent_Bibby/openclosedbook.dat", header = T, sep ="")
+head(datos)
+n <- nrow(datos)
+lambdas <- princomp(datos)$sdev  # Valores propios de la matriz de covarianzas
+theta <- lambdas[1]/sum(lambdas) # Primera proporción de varianza explicada
+```
+
+Aplicando la función definida: 
+
+```{r}
+Tn <- function(x,datos){
+  l <- princomp(datos[x,])$sdev
+  return(l[1]/sum(l))
+}
+(Res <- jackknife(1:n,theta = Tn, datos))
+(thetajack <- mean(Res$jack.values))
+```
+
+3. Análisis lineal discriminante. Para distinguir a los salmones canadienses de los americanos (de Alaska), se mide el diámetro de los anillos en sus escamas.
+
+![Anillos de las escamas](https://www.researchgate.net/profile/Kenyon-Mobley-2/publication/352209951/figure/fig2/AS:1032272174149635@1623124273793/Salmon-scale-samples-contain-important-life-history-information-Time-spent-in-the.png)
+
+Usualmente los anillos de los salmones de río (nacidos en Canadá) son menores a los de los americanos. Los datos corresponden a las siguientes variables:
+
+- `lugar`: lugar de nacimiento (1=Alaska, 2= Canadá)
+- `genero`: 1 = macho, 2 = hembra
+- `rio`: 100*diámetro de anillos del primer año en río (pulgadas)
+- `mar`: 100*diámetro de anillos del primer año en mar (pulgadas)
+
+```{r}
+salmon <- read.table("https://raw.githubusercontent.com/jvega68/EA3/master/datos/J%26W/T11-2.DAT")
+names(salmon) <- c('lugar','genero','rio','mar')
+head(salmon)
+n <- nrow(salmon)
+```
+
+Queremos aplicar discriminante lineal a estos datos para clasificarlos. Queremos calcular la variación del error aparente (APER) de la clasificación, que es la proporción de elementos mal clasificados
+
+```{r}
+library(MASS) # para la función lineal discriminante (lda)
+(lda1 <- lda(lugar ~ rio + mar, data = salmon))
+Res <- data.frame(y = salmon$lugar,
+           pred = predict(lda1, salmon)$class) # comparación entre real y observado
+A <- table(Res)  # Matriz de confusión
+APER <- 100*(A[1,2] + A[2,1])/sum(lda1$counts) # error aparente (porcentaje)
+plot(lda1)
+```
+
+La aplicación del método de jackknife en este contexto, históricamente se conoce como el método de Lachenbruch.
+
+```{r}
+Tn <- function(x, datos){
+  l <- lda(lugar ~ rio + mar, data = datos[x,])
+  Res <- data.frame(y = datos[x,]$lugar,
+                    pred = predict(l, datos[x,])$class) # comparación entre real y observado
+  A <- table(Res)  # Matriz de confusión
+  return(APER = 100*(A[1,2] + A[2,1])/sum(l$counts)) # error aparente (porcentaje)
+}
+(Res <- jackknife(1:n,theta = Tn, salmon))
+(thetajack <- mean(Res$jack.values))
+```
+
+
+4. Las siguientes corresponden a mediciones de cierta hormona en el torrente sanguíneo de ocho sujetos
+después de ponerse un parche médico (Efron y Tibshirani). La cantidad de interés es:
+
+$$ \theta = \frac{E(nuevo) - E(viejo)}{E(viejo) - E(placebo)} $$
+
+Si $|\theta|\leq 0.20$, hay bioequivalencia entre los parches viejo y nuevo. Sean:
+
+- $Y_i = $ medición del nuevo parche menos la medición del parche viejo
+- $Z_i = $ medición del parche viejo menos la medición del placebo
+
+La estadística a considerar para el análisis es la $\theta = T(F) = \frac{E_F(Y)}{E_F(Z)}$, donde $F$ es la distribución conjunta de $(Y,Z)$. En este caso el estimador plug-in es $\hat{\theta} = \bar{y}/\bar{z}$.
+
+Los datos de 8 pacientes se muestran a continuación. 
+
+```{r}
+data(patch, package = "bootstrap")
+patch
+(thetahat <- mean(patch$y)/mean(patch$z))  # estimador
+```
+
+Como |\hat{\theta}|<0.2, se estima que se cumple la condición de bioequivalencia, pero no se puede saber hasta que se tenga una idea de su variación. 
+
+```{r}
+n <- nrow(patch)
+y <- patch$y
+z <- patch$z
+
+#Calculamos las replicaciones jackknife
+thetamenosi <- numeric(n)
+for (i in 1:n) thetamenosi[i] <- mean(y[-i])/mean(z[-i])
+# pseudovalores
+pseudo <- n*thetahat -(n-1)*thetamenosi
+# Parámetro corregido por sesgo
+(thetahat.jack <- mean(pseudo))
+# estimación del sesgo
+(sesgo <- (n-1)*(mean(thetamenosi) - thetahat))
+#error estándar:
+se <- sqrt(var(pseudo)/n)
+```
+
+Vemos que la bioequivalencia sólo se alcanza a una desviación estándar
+
+```{r}
+thetahat.jack + c(-1,1)*se  # una desviación estándar
+thetahat.jack + c(-2,2)*se  # dos desviaciones estándar
+thetahat.jack + c(-3,3)*se  # tres desviaciones estándar
+```
+
+La conclusión es que la bioequivalencia es relativamente débil.
+
+## Introducción al Bootstrap
+
+### 1. Ejemplo práctico de boostrap
+
+Supongamos que conocemos la población de la que provienen los datos, por ejemplo, supongamos que la población es $N(27,49)$, y que tomamos una muestra de tamaño 50 de esta población:
+
+```{r}
+set.seed(1234)
+X <- rnorm(50, mean = 27, sd = 7)
+X
+```
+
+El estimador de la media a partir de esta muestra es `r mean(X)`  y también podemos estimar $s^2=$ `r var(X)`. Sabemos que $\bar{X} \sim N(27,49/50)$. Comparemos como queda la distribución boostrap con respecto a  la muestra observada:
+
+```{r}
+# Obtengamos  las muestras bootstrap
+B <- 2000
+XmediaB <- numeric(B)
+for(i in 1:B){
+  ind <- sample(1:50,replace = T) # B muestras de los índices de las observaciones con reemplazo
+  XmediaB[i] <- mean(X[ind]) 
+}
+
+
+par(mfrow=c(2,2))
+
+# Gráfica de la población:
+curve(dnorm(x,mean=27,sd=7),from=10, to=45,col="blue",ylab="densidad", main="Población N(27,49)")
+abline(v=27)
+
+# Gráfica de la distribución de la media muestral
+curve(dnorm(x,mean=27,sd=7/sqrt(50)),from=10, to =45, col="blue",ylab="densidad", main="Distr muestral N(27,49/50)")
+abline(v=27)
+
+#Histograma de la muestra
+hist(X, breaks = 10, prob = T, main = "Muestra, n = 50")
+abline(v = mean(X), lty = 2, col = "red")
+
+#Distrbución boostrap
+hist(XmediaB, breaks = 10, prob = T, main = "Media de Muestras boostrap", xlim = c(10,45))
+abline(v = mean(XmediaB), lty = 2, col = "red")
+```
+
+El estimador Bootrap del sesgo en este caso es:
+
+```{r}
+sesgoB <- mean(XmediaB) - mean(X)
+sesgoB
+```
+
+
+El siguiente ejercicio es para la varianza
+
+```{r}
+# Obtengamos  las muestras bootstrap de la varianza
+B <- 2000
+XvarB <- numeric(B)
+for(i in 1:B){
+  ind <- sample(1:50, replace = T)
+  XvarB[i] <- var(X[ind]) 
+}
+
+
+par(mfrow = c(2,2))
+
+# Gráfica de la población:
+curve(dnorm(x, mean = 27, sd = 7), from = 10, to = 45, col = "blue", ylab = "densidad", main = "Población N(27,49)")
+abline(v=27)
+
+# Gráfica de la distribución de la distribución de la varianza
+curve(dchisq(x,df=49),from=10, to =100, col="blue",ylab="densidad", main="Distr muestral Chi^2(49)")
+
+#Histograma de la muestra
+hist(X, breaks = 10, prob = T, main = "Muestra, n=50")
+
+
+#Distrbución boostrap
+hist(XvarB, breaks = 10, prob = T, main = "var de Muestras boostrap", xlim = c(10,100))
+```
+
+Podemos comparar el estimador de la media de la muestra con el poblacional, y el estimador bootstrap con la media de la muestra
+
+```{r}
+rbind(c(mediaP=27, mediaM = mean(X), mediaBoot = mean(XmediaB)),
+      c(49/50,var(X)/50,var(XmediaB)))  #error estándar de la media muestral
+```
+

@@ -233,14 +233,14 @@ c) Por último, plateamos el problema de saber si el 5% de la población que má
 p <- 0.95 # percentil considerado.
 (K <- sum(X > 9))
 
-round(pbinom(K,8, .05),5)
+round(pbinom(K-1,8, 1-p, lower.tail = F),8)
+
+round(pbinom(K,8, .05),8)
 
 ```
 
 
 Con lo cual no rechazamos
-
-**Fecha de entrega: miércoles 22 de febrero de 2023**
 
 ## 1. 
 Se mide la altura de los nidos (en metros) de dos especies de pájaros carpinteros. Probar por diferencias entre las alturas de los nidos usando la prueba de suma de rangos de Wilcoxon
@@ -265,9 +265,6 @@ wilcox.test(tratA, tratB)
 t.test(tratA, tratB)
 ```
 
-
-## 3.
-Considerar la distribución de la estadística $U$ de Mann-Withney bajo la hipótesis nula de que los dos tratamientos tienen la misma distribución. Mostrar que $P(U \leq t) = P(U \geq mn-t)$. Concluir que los valores críticos inferior y superior para una prueba a nivel de significancia $\alpha$ satisface la relación $U_{upper} = mn - U_{lower}$.
 
 ## 4. 
 Los datos que se muestran son los registros de heridas en cabeza para dummies del lado del conductor en pruebas de choques de varios coches. Probar para diferencias entre los grupos de tipo de vehículo usando la prueba de Kruskal-Wallis. Separa las medias usando las versiones de rangos de los criterios LSD y HSD.
@@ -326,55 +323,6 @@ hist(U)
 
 ```
 
-## 6. 
-Respondan las partes (a) hasta (e) de esta pregunta utilizando (i) la prueba del signo y (ii) la prueba del rango con signo de Wilcoxon:
-
-- a. Probar a un nivel de significancia que no exceda 0.10 la hipótesis nula $H_0:M=2$ vs. $H_a:M>2$, donde $M$ es la mediana de una población simétrica continua de la cual se extrae la muestra aleatoria:
-
-```{r}
-a <- c(-3, -6, 1, 9, 4, 10, 12)
-```
-
-- b. Dar la probabilidad exacta de un error tipo I en (a).
-- c. Sobre la base de la siguiente muestra aleatoria de pares $(X,Y)$:
-
-```{r}
-X <- c(126 , 131, 153, 125, 119, 102, 116, 163)
-Y <- c(120 , 126, 152, 129, 102, 105, 100, 175)
-```
-
-Probar a un nivel de significancia que no exceda 0.10 la hipótesis nula $H_0:M=2$ contra $H_a:M \neq 2$, donde $M$ es la mediana de una población con distribución continua y simétrica de diferencias $D = X-Y$.
-
-- d. Dar la probabilidad exacta del error tipo I en (c).
-
-- e. Dar el intervalo de confianza correspondiente a la prueba en (c).
-
-## 7. 
-Probar que la estadística del rango con signo de Wilcoxon $T^+ - T^-$ basada en un conjunto de observaciones no cero $X_1, \ldots, X_n$ puede ser escrita en la forma:
-\[ \sum_{1\leq i \leq j \leq n}sgn(X_i+X_j) \] donde $sgn(x)=I(x>0)-I(x<0)$.
-
-## 8. 
-Con la finalidad de probar la efectividad de un programa de entrenamiento de ventas, se seleccionan 6 vendedores al azar para tomar el curso:
-
-```{r}
-ventas_antes <- c(90, 83, 105, 97, 110, 78)
-ventas_despues <- c(97, 80, 110, 93, 123, 84)
-```
-
-Los datos son las ventas brutas de los vendedores antes y después de tomar el curso.
-
-- a. Establecer las hipótesis nula y alternativa y usar la prueba del signo para encontrar un $p-$valor relevante a la pregunta de si el curso es efectivo.
-
-- b. Usar la prueba del signo a un nivel de confianza cercano al 90\% para encontrar un intervalo de confianza  estimado de dos lados de la diferencia de medianas en ventas (después - antes). Dar el nivel exacto.
-
-- c. Usar la prueba del rango con signo para hacer (a). ¿Qué supuesto se debe hacer?
-- d. Usar la prueba del rango con signo para hacer (b).
-
-## 9. 
-Un estudio previo reportó que la cantidad mediana de sueño de los mexicanos adultos es 7.5 horas de las 24 con una desviación estándar de 1.5 horas y que 5\% de la población  duerme 6 o menos horas mientras que otro 5\%  duerme 9 o más horas.
-
-Una muestra actual de 8 adultos reporta que sus horas promedio de sueño por cada 24 horas son $7.2, 8.3, 5.6, 7.4, 7.8, 5.2, 9.1$ y $5.8$ horas.  Usar el procedimiento estadístico apropiado para determinar si los mexicanos adultos  duermen menos hoy de lo que hicieron en el pasado y justificar su elección. 
-Deben al menos probar la hipótesis concerniente a los cuantiles de orden $0.05, 0.50,$ y $0.95$.
 
 
 ## 10.

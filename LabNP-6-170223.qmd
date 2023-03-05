@@ -171,10 +171,6 @@ n <- length(ado$ADO) #número de observaciones
 ```
 
 
-
-# Segundo parcial (no viene ahora)
-
-
   1b. Realiza la prueba de independencia de $X$ y $Y$, en donde la alternativa es de dos colas. ¿Cuál es la conclusión?
 
 **Solución**
