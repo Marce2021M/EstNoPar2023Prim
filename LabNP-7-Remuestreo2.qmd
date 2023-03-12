@@ -1,0 +1,235 @@
+---
+title: "Lab7-Remuestreo2: Bootstrap"
+subtitle: "Estadística No paramétrica"
+lang: es
+author: "Jorge de la Vega"
+date: today
+format:
+  html:
+    page-layout: full
+    embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+```
+
+```{r}
+# Paquete con datos de un libro: "Mathematical Statistics with Resampling in R"
+library(bootstrap) 
+```
+
+## Ejemplos de bootstrap
+
+1. **Datos de calidad de riñón:** Se tienen medidas de 157 voluntarios sanos (donadores potenciales) y las variables son:
+
+- `age`: edad del voluntario
+- `tot`: medida compuesta global de la función del riñón.
+
+Usualmente la función del riñón declina con la edad, y podemos ajustar un modelo de regresión aproximado.
+
+```{r}
+kidney <- read.delim("https://hastie.su.domains/CASI_files/DATA/kidney.txt", header = T, sep ="")
+plot(kidney, pch = 19, col ="blue", main = "Función del riñón en términos de la edad")
+abline(lm(tot ~ age, data = kidney), col = "green4", lwd =2)
+```
+
+Se quiere estimar el coeficiente de correlación entre `age` y `tot`, es la estadística a considerar, y calcular su error estándar. Usando la función jackknife del paquete `bootstrap`:
+
+```{r}
+n <- nrow(kidney)
+Tn = function(x, xdata){cor(xdata[x,1],xdata[x,2])}
+A <- jackknife(1:n, theta = Tn, kidney)
+(A$jack.se) # error estándar
+(A$jack.bias) # sesgo
+```
+
+La versión de función `bootstrap` es similar, pero la función sólo nos devuelve la muestra bootstrap, a partir de la cual hay que calcular el sesgo y el error estándar de la estadística manualmente:
+
+```{r}
+thetahat <- cor(kidney)[1,2] # estimador observado
+B <- bootstrap(1:n, nboot = 500, theta = Tn, kidney)
+(se_boot <- sd(B$thetastar)) # error estándar
+(b_boot <- mean(B$thetastar) - thetahat)  # estimación de sesgo
+(theta_boot <- thetahat - b_boot)  # estimador bootstrap corregido por sesgo
+```
+
+¿Cuándo el sesgo es muy grande? Podemos considerar la regla de dedo: si $|\hat{b_{boot}}/\hat{se}| < 0.25$, entonces el sesgo no es significativo. Pero esta regla se tiene que ajustar a las circunstancias del problema. 
+
+```{r}
+abs(b_boot/se_boot) #métrica para evaluar el tamaño del sesgo. 
+```
+
+Entonces esta corrección por sesgo se puede ignorar.
+
+Otro paquete que puede ser de utilidad para realizar bootstrap que da un poco más de información, es el paquete `boot`, que se basa en el libro de Davison & Hinkley: _Bootstrap Methods and Their Application_ (Cambridge, 1997).
+
+Para el mismo ejemplo, sólo se requiere especificar la función de manera diferente:, el primer argumento de la función son la muestra original, y el segundo argumento deben ser el que corresponde a los índices a muestrear. 
+
+```{r}
+library(boot)
+# Estadística de la que se requiere hacer bootstrap:
+Tn2 <-  function(datos,ind){cor(datos[ind,1],datos[ind,2])}
+
+# Objeto tipo bootstrap
+(Res <- boot(data = kidney, 
+          statistic = Tn2, 
+          R = 2000))  # El número de muestras bootstrap a generar. 
+names(Res) # las muestras bootstrap se guardan en el vector t. 
+```
+
+
+Las réplicas están en la variable `boot1$t`. La notación del paquete `boot` (basado en el libro de Davison y Hinkley), del paquete `bootstrap` (basado en Efron y Tibshirani) y del paquete `resample` (basado en el libro de Laura Chihara y Tim Hesterberg) son diferentes.
+
+2. **Ejemplo de regresión**
+
+Un dispensador médico que libera de manera continua una hormona anti-inflamatoria que se prueba en 27 sujetos. La variable de respuesta $y$ es la cantidad de hormona que permanece en el dispensador cuando se desgasta. Los predictores son 
+
+- `lot` = lote de manufactura del dispensador, y 
+- `hrs` = número de horas de uso del dispositivo antes del desgaste.
+
+
+Se quiere evaluar el efecto de los factores que afectan a la cantidad de hormona que se que queda en el dispensador. La base de datos hormone es parte del paquete `boostrap`.
+
+
+```{r}
+library(bootstrap)
+head(hormone)
+plot(amount ~ hrs, data = hormone, pch = Lot) #Gráfica de los datos
+# Ajustamos un modelo lineal a los datos
+m1 <- lm(amount ~ hrs + factor(Lot), data=hormone)
+# líneas de regresión para cada grupo
+abline(a = m1$coefficients[1], b = m1$coefficients[2]) #linea A
+abline(a = m1$coefficients[1] + m1$coefficients[3], b = m1$coefficients[2], col = "red") # linea B
+abline(a = m1$coefficients[1] + m1$coefficients[4], b = m1$coefficients[2], col = "green") # linea C
+summary(m1) # Valores ajustados. 
+```
+
+En principio, se esperaría que el lote no afectara a $y$. Y se esperaría que a mayor uso, la cantidad residual fuera menor. 
+
+En este problema de regresión, se pueden aplicar el bootstrap de diferentes maneras: 
+
+- _Muestreo sobre las observaciones de los datos_. Este sería el esquema más tradicional.
+- _Muestreo sobre residuales_. Se hace bootstrap sobre los residuales, y con ellos se calculan las muestras bootstrap de las respuestas. En este caso, se dejan fijos los valores de los predictores, y sólo se cambia el valor de la respuesta. Esto funciona en el contexto donde se considere a los predictores como no aleatorios. 
+
+**Bootstrap sobre las observaciones**
+
+Creamos la función que toma los coeficientes de la muestra generada
+
+```{r}
+Tn <- function(datos,ind){
+       lm(amount ~ hrs + factor(Lot), data = datos[ind,])$coefficients
+}
+(z2 <- boot(data = hormone, statistic = Tn, R=1000))
+
+plot(amount ~ hrs, data = hormone, pch = Lot) #Gráfica de los datos
+
+for(i in 1:200){ 
+  abline(a = z2$t[i,1], 
+         b = z2$t[i,2], lwd = 0.5, lty = 2) # A
+  abline(a = z2$t[i,1] + z2$t[i,3] , 
+         b = z2$t[i,2], col = "red", lwd = 0.5, lty = 2) # B
+  abline(a = z2$t[i,1] + z2$t[i,4] , 
+         b = z2$t[i,2], col = "green", lwd = 0.5, lty = 2) # C
+}
+  
+points(hormone$hrs, hormone$amount, pch = hormone$Lot)
+abline(a = m1$coefficients[1], b = m1$coefficients[2], col = "yellow", lwd = 5) # A
+abline(a = m1$coefficients[1] + m1$coefficients[3], b = m1$coefficients[2], col="navy", lwd=5) # B
+abline(a = m1$coefficients[1] + m1$coefficients[4], b = m1$coefficients[2], col="navy", lwd=5) # C
+```
+
+**Bootstrap sobre los residuales**
+
+```{r}
+m1 <- lm(amount ~ hrs + factor(Lot), data=hormone)
+beta <- m1$coefficients # coeficientes se consideran fijos.
+X <- model.matrix(m1)   # predictores son fijos. Esta es la matriz del modelo de regresión
+
+regres <- function(residuos, ind, X, beta){
+  # Esta función sólo hace bootstrap sobre los residuales
+  y <- X %*% beta + residuos[ind]
+  return(lm(y ~ X - 1)$coefficients) # se quita la constante porque ya está incluida en X.
+}
+z2 <- boot(data = m1$residuals, 
+          statistic = regres, 
+          X = model.matrix(m1),  # La matriz se pasa fija a la función que hace el bootstrap
+          beta = m1$coefficients, 
+          R = 1000)
+
+plot(amount ~ hrs, data = hormone, pch = Lot) #Gráfica de los datos
+
+for(i in 1:200){ 
+  abline(a = z2$t[i,1], 
+         b = z2$t[i,2], lwd = 0.5, lty = 2) # A
+  abline(a = z2$t[i,1] + z2$t[i,3] , 
+         b = z2$t[i,2], col = "red", lwd = 0.5, lty = 2) # B
+  abline(a = z2$t[i,1] + z2$t[i,4] , 
+         b = z2$t[i,2], col = "green", lwd = 0.5, lty = 2) # C
+}
+  
+points(hormone$hrs, hormone$amount, pch = hormone$Lot)
+abline(a = m1$coefficients[1], b = m1$coefficients[2], col = "yellow", lwd = 5) # A
+abline(a = m1$coefficients[1] + m1$coefficients[3], b = m1$coefficients[2], col="navy", lwd=5) # B
+abline(a = m1$coefficients[1] + m1$coefficients[4], b = m1$coefficients[2], col="navy", lwd=5) # C
+```
+
+
+3. **Precios de propiedades en Seattle**. Los datos siguientes corresponden a una muestra de precios de venta de propiedades en Seattle en 2002. Los datos no distinguen entre propiedades residenciales que son la mayoría, pero hay algunas comerciales en la muestra, lo cual puede incrementar el precio promedio de venta muestral. Una estadística más resistente a valores extremos es la media recortada.
+
+```{r}
+precios <- c(142, 175, 197.5, 149.4, 705, 232, 50, 146.5, 155, 1850, 132.5, 215, 116.7, 244.9, 290, 200, 260, 449.9, 66.407, 164.95, 362, 307, 266, 166, 375, 244.95, 210.95, 265, 296, 335, 335, 1370, 256, 148.5, 987.5, 324.5, 215.5, 684.5, 270, 330, 222, 179.8, 257, 252.95, 149.95, 225, 217, 570, 507, 190)
+mean(precios)
+mean(precios, trim = 0.25)
+hist(precios, probability = T, main = "histograma de los precios", ylab = "densidad", breaks = 30)
+```
+
+¿Cuál es la distribución muestral de $x_{25\%}$? Podemos estimar lo que necesitamos con bootstrap.
+
+```{r}
+media.recortada <- function(x,ind){mean(x[ind], trim = 0.25)}
+(boot1 <- boot(data = precios, statistic = media.recortada, R = 2000))
+hist(boot1$t, breaks = 50)
+```
+
+### Intervalos de confianza bootstrap
+
+Hay diferentes maneras de calcular intervalos de confianza. Varian en su facilidad de cómputo, supuestos y exactitud. Todos se basan en el error estándar bootstrap $\hat{se}_{boot}= \sqrt{v_{boot}}$. Los métodos son:
+
+- bootstrap-normal estándar
+- bootstrap-básico
+- bootstrap-percentil
+- bootstrap-BCa
+- bootstrap-t
+
+```{r}
+(a1 <- boot.ci(boot1, conf = c(0.90,0.95), type = c("norm", "basic", "perc", "bca")))
+```
+
+Para el bootstrap-t se requiere obtener el error estándar estimado en cada cálculo bootstrap.
+
+```{r}
+media.recortada2 <- function(x,ind){
+                     thetahat.star <- mean(x[ind], trim = 0.25)
+                     var.star <- sum((x[ind]-thetahat.star)^2)/(length(x[ind]))^2
+                     return(c(thetahat.star,var.star))}
+(boot2 <- boot(data = precios, statistic = media.recortada2, R = 2000))
+(a2 <- boot.ci(boot2, conf = c(0.90,0.95), type = "stud"))
+```
+
+Podemos armar una gráfica comparativa. La línea vertical es el valor del parámetro estimado. Noten que no todos los intervalos son simétricos alrededor del estimado. 
+
+```{r}
+tabla <- data.frame(intervalo = c("Normal", "Basico","Percentile", "BCa", "student"),
+                    lim.inf = c(a1$normal[2,2], a1$basic[2,4], a1$percent[2,4],
+                                a1$bca[2,4], a2$student[2,4]),
+                    lim.sup = c(a1$normal[2,3], a1$basic[2,5], a1$percent[2,5],
+                                a1$bca[2,5], a2$student[2,5]))
+ dotchart(tabla$lim.inf,labels = tabla$intervalo,xlim=range(tabla$lim.inf,tabla$lim.sup),
+          pch = 19, main = "Intervalos bootstrap")
+ points(tabla$lim.sup,1:nrow(tabla), col = "blue", pch = 19)
+ abline(v= mean(precios, trim = 0.25))
+ for(i in 1:5) segments(tabla$lim.inf[i],i,tabla$lim.sup[i],i, lwd = 4)
+```
+
+
