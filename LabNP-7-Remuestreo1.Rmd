@@ -100,7 +100,7 @@ library(MASS) # para la función lineal discriminante (lda)
 Res <- data.frame(y = salmon$lugar,
            pred = predict(lda1, salmon)$class) # comparación entre real y observado
 A <- table(Res)  # Matriz de confusión
-APER <- 100*(A[1,2] + A[2,1])/sum(lda1$counts) # error aparente (porcentaje)
+(APER <- 100*(A[1,2] + A[2,1])/sum(lda1$counts) )# error aparente (porcentaje)
 plot(lda1)
 ```
 

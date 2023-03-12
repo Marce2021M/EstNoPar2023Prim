@@ -1,0 +1,76 @@
+# Tarea 4
+
+## Integrantes:
+
+- Marcelino Sánchez Rodríguez
+
+-Diego Arturo Velázquez Trejo
+
+## Problema 1
+
+Residuos de aflatoxin en crema de cacahuate: En una preuba real, 12 lotes de crema de cacahuate tienen
+residuos de aflatoxin en partes por mil millones de 4.94, 5.06, 4.53, 5.07, 4.99, 5.16, 4.38, 4.43, 4.93, 4.72, 4.92
+y 4.96.
+•a) ¿Cuántas posibles muestras bootstrap hay?
+
+```{r}
+datos1 <- c(4.94, 5.06, 4.53, 5.07, 4.99, 5.16, 4.38, 4.43, 4.93, 4.72, 4.92,4.96)
+ndatos1 <- length(datos1)
+
+#utilizamos la fórmula
+
+paste0("Las posibles muestras bootstrap que hay son: ",choose(2*ndatos1-1, ndatos1))
+```
+
+•b) Calcular 50 muestras bootstrap, (fijar la semilla en 100) y encontrar la media de los correspondientes
+elementos de la muestra del conjunto de datos.
+
+```{r}
+set.seed(100)
+
+Tn <- function(x){mean(datos1[x])}
+
+boots <- bootstrap(1:ndatos1, nboot = 50, theta = Tn)
+```
+
+•c) Calcular la media de las medias bootstrap. Comparar con la media del conjunto de datos original.
+
+```{r}
+(b_boot <- mean(boots$thetastar) )  # estimación de media
+(that <- mean(datos1))
+```
+
+
+•d) Encontrar el mínimo y el máximo de las 50 medias bootstrap. Este es un intervalo de confianza muy crudo de la media
+```{r}
+print("Mínimo")
+(min(boots$thetastar))
+print("Máximo")
+(max(boots$thetastar))
+```
+
+
+## Problema 2
+
+Accidentes de aerolíneas: De acuerdo al U.S. National transportation safety Board, el número de accidentes
+aéreos por año de 1983 a 2006 fueron:
+```{r}
+accidentes <- c(23,16,21, 24, 34, 30, 28, 24, 26, 18, 23, 23, 36, 37, 49, 50, 51,
+56, 46, 41, 54, 30, 40, 31)
+```
+•a) Para los datos de la muestra, calcular la media y su error estándar, y la mediana.
+
+```{r}
+(mediaAccid <- mean(accidentes))
+
+(sdAccid <- sd(accidentes))
+```
+
+•b) Calcular muestras jackknife de la media y la mediana con estimadores de sus errores estándar.
+También calcular la mediana de los estimados de medianas
+
+```{r}
+
+```
+•c) Repetir (b) con B = 1000 muestras bootstrap (fijando la semilla en 1)
+•d) Comparar (a),(b) y (c). ¿Cómo se comparan los resultados de cada método?
