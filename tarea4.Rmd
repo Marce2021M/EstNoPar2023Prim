@@ -6,6 +6,10 @@
 
 -Diego Arturo Velázquez Trejo
 
+```{r}
+library(bootstrap)
+```
+
 ## Problema 1
 
 Residuos de aflatoxin en crema de cacahuate: En una preuba real, 12 lotes de crema de cacahuate tienen
@@ -57,6 +61,8 @@ aéreos por año de 1983 a 2006 fueron:
 ```{r}
 accidentes <- c(23,16,21, 24, 34, 30, 28, 24, 26, 18, 23, 23, 36, 37, 49, 50, 51,
 56, 46, 41, 54, 30, 40, 31)
+
+lenAcci <- length(accidentes)
 ```
 •a) Para los datos de la muestra, calcular la media y su error estándar, y la mediana.
 
@@ -70,7 +76,105 @@ accidentes <- c(23,16,21, 24, 34, 30, 28, 24, 26, 18, 23, 23, 36, 37, 49, 50, 51
 También calcular la mediana de los estimados de medianas
 
 ```{r}
+print("Mediana")
+Tn1 <- function(x){median(accidentes[x])}
+
+jackA <- jackknife(1:lenAcci, theta = Tn1)
+
+(jackA$jack.se) # error estándar
+
+(jackA$jack.bias) # sesgo
+
+
+(median(jackA$jack.values))
+print("Media")
+Tn2 <- function(x){mean(accidentes[x])}
+
+jackB <- jackknife(1:lenAcci, theta = Tn2)
+
+(jackB$jack.se) # error estándar
+
+(jackB$jack.bias) # sesgo
+
 
 ```
+
 •c) Repetir (b) con B = 1000 muestras bootstrap (fijando la semilla en 1)
+
+```{r}
+set.seed(1)
+
+Tn3 <- function(x){median(accidentes[x])}
+
+bootsA <- bootstrap(1:lenAcci, nboot = 1000, theta = Tn3)
+
+(median(bootsA$thetastar) ) # estimador de mediana
+
+(sd(bootsA$thetastar)) #estimador de desviación estándar
+
+
+Tn4 <- function(x){mean(accidentes[x])}
+
+bootsB <- bootstrap(1:lenAcci, nboot = 1000, theta = Tn4)
+
+(sd(bootsB$thetastar)) #estimador de desviación estándar
+
+(mean(bootsB$thetastar))
+
+```
+
 •d) Comparar (a),(b) y (c). ¿Cómo se comparan los resultados de cada método?
+
+Cuando se trata de calcular la mediana, se nota que los 3 procedimientos dan el mismo resultado y quien presenta la menor desviación estándar en cuanto a calcular mediana estimada es el método bootstrap.
+
+Por otra parte, cuando se trata de calcular la media, el jackknife es el procedimiento que más se acerca a la media de la muestra y tiene la menor desviación estándar comparado con el método bootstrap. 
+
+## Problema 3
+
+Con los datos del ejercicio 1:
+•a) Calcular un intervalo de confianza de 95% para la media usando la distribución t de Student
+estándar.
+•b) Encontrar un intervalo de confianza de 95% usando el método percentil.
+•c) Encontrar un intervalo de confianza de 95% usando el método BCa.
+•d) Encontrar un intervalo de confianza de 95% usando el método percentil-t.
+
+```{r}
+#preparamos los estadísticos y bootstrap
+set.seed(1000)
+#los normales
+mediaInt <- function(x,ind){mean(x[ind])}
+boot1 <- boot(data = datos1, statistic = mediaInt, R = 2000)
+hist(boot1$t, breaks = 50)
+
+#con t de Student
+
+mediaInt2 <- function(x,ind){
+                     thetahat.star <- mean(x[ind])
+                     var.star <- sum((x[ind]-thetahat.star)^2)/(length(x[ind]))^2
+                     return(c(thetahat.star,var.star))}
+boot2 <- boot(data = datos1, statistic = mediaInt2, R = 2000)
+hist(boot2$t[,1], breaks = 75)
+```
+
+```{r}
+# procedemos a hacer tabla con intervalos de confianza
+(a1 <- boot.ci(boot1, conf = c(0.90,0.95), type = c("perc", "bca")))
+
+(a2 <- boot.ci(boot2, conf = c(0.90,0.95), type = "stud"))
+
+tabla <- data.frame(intervalo = c("Percentile", "BCa", "student"),
+                    lim.inf = c(a1$percent[2,4],
+                                a1$bca[2,4], a2$student[2,4]),
+                    lim.sup = c( a1$percent[2,5],
+                                a1$bca[2,5], a2$student[2,5]))
+ dotchart(tabla$lim.inf,labels = tabla$intervalo,xlim=range(tabla$lim.inf,tabla$lim.sup),
+          pch = 19, main = "Intervalos bootstrap")
+ points(tabla$lim.sup,1:nrow(tabla), col = "blue", pch = 19)
+ abline(v= mean(datos1))
+ for(i in 1:5) segments(tabla$lim.inf[i],i,tabla$lim.sup[i],i, lwd = 4)
+```
+
+#FALTA método PECRCENTIL T
+
+•e) ¿Cómo se comparan los intervalos? ¿En qué intervalos confían?
+

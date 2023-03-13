@@ -233,3 +233,17 @@ tabla <- data.frame(intervalo = c("Normal", "Basico","Percentile", "BCa", "stude
 ```
 
 
+## Problema 6
+Generar 100 muestras X1,...,X20 de una población normal N (θ,1) con θ = 1
+
+```{r}
+# checar
+simNormal <- NULL
+for(i in c(1:100)){
+       simNormal[,i] <- rnorm(20, mean=1, sd=1)
+}
+```
+
+•a) Para cada muestra calcular los estimados bootstrap y jackknife de varianza paea ˆθ =  ̄X y calcular la media y desviación estándar de estos estimadores de varianza sobre las 100 muestras.
+
+•b) Repetir (a) para la estadística  ̄X2 y comparar resultados. Den una explicación de lo que encontraron.
