@@ -1,0 +1,175 @@
+---
+title: "Lab8: Regresión no paramétrica"
+subtitle: "Estadística No paramétrica"
+lang: es
+author: "Jorge de la Vega"
+date: today
+format:
+  html:
+    page-layout: full
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(rgl)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+knitr::knit_hooks$set(webgl = hook_webgl)
+```
+
+
+# Nota:
+
+Para localizar puntos en la gráfica se pueden utilizar las funciones de identify y locator
+
+## Ejemplo motivacional
+
+Los siguientes datos corresponden a puntajes de profesiones (variable `Prestige`) obtenidos a través de una encuesta en Canadá, y se relacionan al ingreso promedio (`Income`) y al nivel de educación promedio (`Education`) de esa ocupación. Los datos están en el archivo `Prestige.txt` (Blishen, 1976).
+
+```{r}
+datos <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/Prestige.txt", 
+                    sep = "",
+                    header =T)
+head(datos)
+```
+
+Se ajusta un modelo de regresión lineal múltiple a los puntajes asignados a las 102 ocupaciones. El propósito de este análisis es predecir puntajes para otras ocupaciones no incorporadas en la encuesta y de las que no se tenía valor. 
+
+```{r}
+(m1 <- lm(prestige ~ income + education, data = datos))
+```
+
+El modelo ajusta un plano a los datos, con un modelo de la forma: 
+$$E(y|x) = \beta_0 + \beta_1x_1 + \cdots + \beta_px_p$$
+```{r, webgl=T}
+#| fig-height: 8
+open3d()
+with(datos,plot3d(income, education, prestige, col = "blue", type = "s",size = 1, pch = 16))
+coefs <- coef(m1)
+b1 <- coefs["income"]
+b2 <- coefs["education"]
+b0 <- coefs["(Intercept)"]
+# La función grafica el plano ax + by + cz + d = 0
+planes3d(a = b1,
+         b = b2,
+         c = -1,
+         d = b0, alpha = 0.5) # alpha es transparencia
+```
+
+Viendo una dirección en particular en la que el modelo lineal no es apropiado. ¿Qué modelo paraétrico se ajustaría aquí? 
+
+```{r}
+with(datos, plot(income, prestige))
+m2 <- lm(prestige ~ income, data = datos)
+abline(m2)
+```
+
+Un procedimiento simple para ajustar una curva es similar al que se usa para construir un histograma, se conoce como _binning_ o _bucketing_ (agrupamiento, baldeando) que consiste en tomar una partición del dominio de $X$ para generar bandas en el diagrama de dispersión de puntos: 
+
+```{r, warning = F, message= F}
+attach(datos)
+plot(income, prestige)
+abline(v=seq(min(income),max(income),length.out=10))
+```
+
+Cuando las bandas creadas son pequeñas, se puede obtener una aproximación a $E(Y|X)$ en cada banda calculando $\bar{y}|(x \mbox{ en banda } i)$. Finalmente unimos los puntos centrales de cada bin.
+
+```{r}
+attach(datos)  # simplifica la llamada a los datos
+# Función que calcula los promedios en el bin.
+promedios <- function(x){
+               ybar <- NULL
+              for(i in 1:(length(x)-1)){
+	                ybar[i] <- mean(prestige[(income>= x[i]) & 
+	                                         (income <= x[i+1])])
+	                }
+                  ybar
+}
+
+# Considera dos tamaños de bins: 10 y 20
+par(mfrow=c(1,2))
+for(j in c(5,14)){
+  plot(income, prestige, main = paste0("Caso: j = ",j))
+  bins <- seq(min(income), max(income), length.out = j)
+  abline(v = bins)
+  y <-promedios(bins)
+  bins[length(bins)+1] <- bins[length(bins)]
+  for(i in 1:(length(bins)-1)){
+ 	     segments(bins[i], y[i], bins[i+1],y[i], lwd = 3, col = "red")
+ 	     segments((bins[i] + bins[i+1])/2, y[i], 
+ 	              (bins[i+1] + bins[i+2])/2, y[i+1], lwd = 3, col = "blue")
+  }
+}
+```
+
+El procedimiento anterior, con variaciones en complejidad y con casos de diferentes situaciones resueltas de diferentes modos, es lo que da origen a diversas metodologías.
+
+Como en los casos de cualquier procedimiento de estimación, existe un intercambio entre sesgo y varianza, que en este contexto dependeña de qué tamaño se considere el ancho de cada banda. 
+
+
+## Otro ejemplo
+
+Los siguientes datos son datos de un juego de lotería diario de New Jersey para apoyar a la educación y a las instituciones. Los datos van de mayo de 1975 a marzo de 1976. Aquí los ganadores del concurso comparten una fracción de la ganancia de un número dado. 
+
+```{r}
+loteria <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/lotery.txt", 
+                      header = T, sep = "")
+with(loteria, plot(number,payoffs))
+```
+
+¿Todos los números tienen, en promedio, la misma ganancia? Aquí nos ayuda un modelo. 
+
+```{r}
+with(loteria, plot(number,payoffs))
+abline(lm(payoffs ~ number, data = loteria))
+# agregamos una forma de regresión no paramétrica: 
+lines(with(loteria,lowess(payoffs ~ number, f = 0.2)), col = "red", lwd = 2)
+```
+
+
+## Modelos a considerar
+
+Algunos de los modelos que vamos a considerar son los siguientes: 
+
+- **Estimadores basados en kernel**: Nadaraya-Watson, Gasser-Müller y polinomios locales
+- **Modelos de vecinos más cercanos (nearest neighbors)**: este incluye `loess`.
+- **Modelos aditivos**: son modelos de la forma $y = \alpha + \sum_{i=1}^p f_i(X_i) + \epsilon$
+- **Splines**
+- **Onduletas o _wavelets_**.
+
+Los propósitos de estimar un modelo no paramétrico son varios: 
+
+1. Tener un método versátil para explorar relaciones generales entre variables
+2. Dar predicciones a observaciones nuevas sin necesidad de tener un modelo paramétrico fijo.
+3. Como herramienta para identificar observaciones espurias e influencia de puntos aislados.
+4. Método de interpolación de valores faltantes. 
+
+
+## Ejemplo de kernel
+
+Este es el kernel beta, con diferentes parámetros: 
+
+```{r}
+kbeta <- function(x,gama = 0){
+           1/beta(0.5,gama+1) * (1-x^2)^(gama)*ifelse((x <= 1) & (x >= -1),1,0)
+}
+par(mfrow=c(2,4))
+# Kernel uniforme
+curve(kbeta(x),from =-1.5, to = 1.5, ylim = c(0,1.8), main = "Uniforme")
+for(i in 1:7)curve(kbeta(x, gama = i),from = -1.5, to = 1.5, 
+                   main = paste("gamma=",i))
+```
+
+Un ejemplo de un kernel generalizado (no necesariamente es una densidad) es la siguiente función:
+$$ K(x) = \frac{1}{2}\exp\left(-\frac{|x|}{\sqrt{2}}\right)\sin\left(\frac{|x|}{\sqrt{2}} + \frac{\pi}{4}\right)$$
+
+```{r}
+par(mfrow=c(1,1))
+k <- function(x){
+       0.5*exp(-abs(x)/sqrt(2))*sin(abs(x)/sqrt(2) + pi/4)
+     }
+curve(k(x),from =-10, to = 10)
+abline(h=0)
+```
+

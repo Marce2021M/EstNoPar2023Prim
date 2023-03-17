@@ -8,6 +8,7 @@
 
 ```{r}
 library(bootstrap)
+library(boot)
 ```
 
 ## Problema 1
@@ -177,4 +178,6 @@ tabla <- data.frame(intervalo = c("Percentile", "BCa", "student"),
 #FALTA método PECRCENTIL T
 
 •e) ¿Cómo se comparan los intervalos? ¿En qué intervalos confían?
+
+
 
