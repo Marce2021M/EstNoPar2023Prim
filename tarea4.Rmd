@@ -2,9 +2,9 @@
 
 ## Integrantes:
 
-- Marcelino Sánchez Rodríguez
-
--Diego Arturo Velázquez Trejo
+- Marcelino Sánchez Rodríguez 191654
+-Diego Arturo Velázquez Trejo 187931
+-Enrique Vargas 185111
 
 ```{r}
 library(bootstrap)
@@ -159,14 +159,12 @@ hist(boot2$t[,1], breaks = 75)
 
 ```{r}
 # procedemos a hacer tabla con intervalos de confianza
-(a1 <- boot.ci(boot1, conf = c(0.90,0.95), type = c("perc", "bca")))
-
+(a1 <- boot.ci(boot1, conf = c(0.90,0.95), type = c("norm", "basic", "perc", "bca")))
 (a2 <- boot.ci(boot2, conf = c(0.90,0.95), type = "stud"))
-
-tabla <- data.frame(intervalo = c("Percentile", "BCa", "student"),
-                    lim.inf = c(a1$percent[2,4],
+tabla <- data.frame(intervalo = c("Normal", "Basico","Percentile", "BCa", "student"),
+                    lim.inf = c(a1$normal[2,2], a1$basic[2,4], a1$percent[2,4],
                                 a1$bca[2,4], a2$student[2,4]),
-                    lim.sup = c( a1$percent[2,5],
+                    lim.sup = c(a1$normal[2,3], a1$basic[2,5], a1$percent[2,5],
                                 a1$bca[2,5], a2$student[2,5]))
  dotchart(tabla$lim.inf,labels = tabla$intervalo,xlim=range(tabla$lim.inf,tabla$lim.sup),
           pch = 19, main = "Intervalos bootstrap")
@@ -175,9 +173,84 @@ tabla <- data.frame(intervalo = c("Percentile", "BCa", "student"),
  for(i in 1:5) segments(tabla$lim.inf[i],i,tabla$lim.sup[i],i, lwd = 4)
 ```
 
-#FALTA método PECRCENTIL T
 
 •e) ¿Cómo se comparan los intervalos? ¿En qué intervalos confían?
 
+El intervalo student refleja mucha incertidumbre y es muy grande, los demás intervalos son en cierta forma más chicos. Sin embargo, se observa que el intervalo Percentile está más centrado con respecto a estimador máximo verosímil que los demás; por lo que podríamos decir que este intervalo es de las mejores aproximaciones.
+
+## Pregunta 6
+
+```{r}
+
+#Establezco mi funcion de la varianza para el jacknife
+estadistico_0 = function(ind,x){var(x[ind])}
 
 
+#Hago un ciclo de 100 muestras de tamño 20
+
+estimadores_jk<-c()
+estimadores_bs<-c()
+for (i in 1:100){
+  x0<-rnorm(20,1,1)
+  boot0_jk<-jackknife(1:20, estadistico_0, x0)
+  ind <- sample(1:20, replace = T)
+  #boot0_bs<-boot(data = x0, statistic = estadistico0, R = 20)
+  estimadores_jk[i]<-mean(boot0_jk$jack.values)
+  estimadores_bs[i]<-var(x0[ind])
+}
+
+#Comparamos Bootstrap vs Jacknife
+(mean(estimadores_bs))
+(mean(estimadores_jk))
+(sd(estimadores_bs))
+(sd(estimadores_jk))
+
+```
+
+
+Tiene una menos desviacion estandar el estimador Jacknife
+
+## Porblema 7
+
+```{r}
+##Inciso a
+#Muestra de tamaño 20 de una Chi grado 1
+x1<-rchisq(20,1)
+
+
+##Intervalo teórico al 95% de confianza
+(ic<-c(mean(x)*20/qchisq(.975,20),mean(x)*20/qchisq(.025,20)))
+
+
+##Inciso c
+
+#Formula del estimador:
+
+estadistico_2<-function(x,ind){
+  media<-mean(x[ind])
+  desv_est<-sqrt(sum((x[ind]-medias)^2)/(length(x[ind]))^2)
+  return(c(media,desv_est))
+}
+
+#Boot de los estimadores de la media (t1)
+# y desviacion estandar(t2)
+
+(boot2 <- boot(data = x1, statistic = estadistico_2, R = 1000))
+
+#Intervalo de confianza al 95%
+
+(ic2 <- boot.ci(boot2, conf = c(0.95), type = c("stud")))
+
+#Inciso b
+
+x2<-rnorm(20)
+
+estadistico_1<- function(x,ind){(mean(x[ind])-mean(x))/sd(x[ind])}
+(boot1 <- boot(data = x2, statistic = estadistico_1, R = 1000))
+
+
+(ic1 <- boot.ci(boot1, conf = c(0.95), type = c("norm")))
+```
+
+El intervalo de confianza de la muestra boot strap
+por el metodo de t-studentes es el más exacto

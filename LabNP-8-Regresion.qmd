@@ -173,3 +173,21 @@ curve(k(x),from =-10, to = 10)
 abline(h=0)
 ```
 
+
+# Código de la clase del 22 de marzo
+```{r}
+datos <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/Prestige.txt", 
+                    sep = "",
+                    header =T)
+head(datos)
+attach(datos)
+plot(income, prestige)
+
+lines(ksmooth(income,prestige, kernel ="normal", bandwidth=100),lwd=2, col=1)
+lines(ksmooth(income,prestige, kernel ="normal", bandwidth=1000),lwd=2, col=2)
+lines(ksmooth(income,prestige, kernel ="normal", bandwidth=10000),lwd=2, col=3)
+lines(ksmooth(income,prestige, kernel ="normal", bandwidth=100000),lwd=2, col=4)
+
+m <- ksmooth(income,prestige, kernel ="normal", bandwidth=1000)
+
+```
