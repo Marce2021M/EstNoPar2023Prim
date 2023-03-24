@@ -175,6 +175,8 @@ abline(h=0)
 
 
 # Código de la clase del 22 de marzo
+
+## Estimador basado en kernel
 ```{r}
 datos <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/Prestige.txt", 
                     sep = "",
@@ -191,3 +193,51 @@ lines(ksmooth(income,prestige, kernel ="normal", bandwidth=100000),lwd=2, col=4)
 m <- ksmooth(income,prestige, kernel ="normal", bandwidth=1000)
 
 ```
+
+## Estimador de Gasser-Muller
+```{r}
+library(lokern)
+
+lines(glkerns(income, prestige, is.rand=T), col="blue", lwd=4)
+lines(lokerns(income, prestige, is.rand=T), col="red", lwd=6)
+
+```
+
+
+# Laboratorio de la penúltima clase antes de semana santa
+
+```{r}
+
+library(locfit)
+
+library(lokern)
+
+
+datos <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/wmap.dat",
+                    sep = "", header = T)
+
+with(datos,plot(ell,Cl,pch = 16,cex = 0.5))
+
+# Nadarayan-watson (NW)
+lines(ksmooth(datos$ell,datos$Cl,bandwidth = 100), col = "green",lwd=2)
+
+# Gasser ,Muller
+with(datos, plot(ell, Cl, pch=16, cex=.5))
+
+#este modelo es con h fija
+
+lines(glkerns(datos$ell, datos$Cl, is.rand=F, bandwidth=20), col="red", lwd=3)
+
+#la ha es variable para cada punto
+
+lines(lokerns(datos$ell, datos$Cl, is.rand=F, bandwidth=10*runif(899)), col="red", lwd=3)
+
+# polinomios locales
+
+with(datos, plot(ell, Cl, pch=16, cex=.5))
+m1 <- locfit(Cl ~ lp(ell,deg=3, nn=.5),data=datos)
+
+lines(m1, col="purple", lwd=3)
+
+```
+
