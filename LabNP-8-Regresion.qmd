@@ -241,3 +241,26 @@ lines(m1, col="purple", lwd=3)
 
 ```
 
+## Método para calcular el bandwith correcto 
+
+Esto se puede hacer con validación cruzada o jacknife.
+
+```{r}
+cv.ksmooth <- function(x,y,l=100){
+  h_seq <- seq(.1, to=max(x)/4,length.out=l)
+  n=length(y)
+  CV_h <- numeric(n)
+  for (j in 1:l) {
+    cv_err <- numeric(n)
+    for (i in 1:n){
+      fit <- ksmooth(x[-i],y[-i],bandwidth=h_seq[j],x.points=x[i])$y
+      cv_err[i] <- (fit-y[i])^2
+    }
+    CV_h[j] <- mean(cv_err, na.rm=T)
+  }
+  return(list(h=h_seq, CV_h=CV_h, h_star=h_seq[which.min(CV_h)]))
+}
+
+cv.ksmooth(datos$ell, datos$Cl)
+```
+
