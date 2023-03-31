@@ -1,0 +1,291 @@
+---
+title: "Lab8: Regresión no paramétrica 3"
+subtitle: "Estadística No paramétrica"
+lang: es
+author: "Jorge de la Vega"
+date: today
+format:
+  html:
+    page-layout: full
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(rgl)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+knitr::knit_hooks$set(webgl = hook_webgl)
+```
+
+## Ejemplo práctico completo de aplicación
+
+La siguiente base de datos proviene de la Red Automática de Monitoreo Atmosférico (RAMA) se puede encontrar en la siguiente liga: [RAMA](http://www.aire.cdmx.gob.mx/default.php?opc=%27aKBh%27).
+
+
+```{r}
+library(readxl)
+d <- read_xls("../data/2022O3.xls",na = "-99")
+# Agregamos una columna que combine la fecha y la hora
+d$D <- as.POSIXct(paste(as.character(d$FECHA),d$HORA), format = "%Y-%m-%d %H")
+dias <- 1 # días a considerar para el modelo
+d <- d[1:(24*dias),]
+plot(d$D, d$CUA, type = "p", main = "Nivel de ozono en estación Cuauhtémoc")
+rug(d$D,  side = 1)
+rug(d$CUA, side = 2)
+```
+
+Queremos construir un modelo "óptimo" para un día, junto con una estimación del error y una banda de confianza. Noten que en este ejemplo, los datos en el eje x son equidistantes, en este sentido, es como un diseño experimental, aunque en realidad es una serie de tiempo.
+
+### LOESS
+
+Para la función `loess` no tenemos una manera automática de estimar el span. Hay que hacerlo manualmente como lo hicimos previamente. En este caso se puede tratar por ensayo y error alrededor de un valor de 0.5. Por otra parte, el objeto loess regresa los valores que se necesitan para realizar la validación cruzada.
+
+```{r}
+plot(d$D, d$CUA, type = "p", main = "Nivel de ozono en estación Cuauhtémoc")
+rug(d$D,  side = 1)
+rug(d$CUA, side = 2)
+
+grid_span <- c(0.2,0.3,0.4,0.5,0.6,0.7)
+for(h in grid_span){
+  m1 <- loess(d$CUA ~ as.numeric(d$D), span = h, degree = 1)
+  lines(d$D,fitted(m1), col = which(grid_span == h), lwd = 3)
+}
+legend("topright",col = 1:6, legend = grid_span[1:6], lty = 1, lwd = 3)
+```
+
+Intervalo de confianza para loess. Usando h = 0.6: Podemos usar la función del paquete `spatialEco`, que permite obtener intervalos de confianza normales como vía bootstrap
+
+```{r}
+library("spatialEco")
+
+h <- 0.6
+# noten el órden las variables (y,x)
+m1a <- loess.ci(d$CUA, as.numeric(d$D), span = h, degree = 1, plot = T)
+m1 <- loess(d$CUA ~ as.numeric(d$D), span = h, degree = 1)
+lines(d$D,fitted(m1), col = which(grid_span == h), lwd = 3)
+m1  # Características del modelo ajustado
+m1$s # error estándar
+qqnorm(m1$residuals) # comportamiento de los residuales 
+
+# Intervalo basado en bootstrap Noten el cambio de órden en las variables (x,y)
+mb <- loess.boot(as.numeric(d$D), d$CUA, nreps = 1500, span = h, degree = 1)
+plot(mb)
+mb$fit$stddev # desviación estándar en cada punto
+```
+
+Finalmente, podemos hacer predicciones del modelo para nuevas observaciones. Sólo hay que cuidar los valores del eje x.
+
+```{r}
+predict(m1, newdata = c(1641020450, 1641079000),se = T)
+```
+
+
+### Nadaraya-Watson
+
+Realizando los mismos pasos para el modelo de Nadaraya-Watson, lo haremos con el paquete `locfit`, considerando el grado 0 del polinomio:
+
+```{r}
+library(locfit)
+#elección de bandwidth
+alpha <- seq(0.15, 0.99, by = 0.01)
+# Los siguientes argumentos son para el caso NW
+a <- gcvplot(CUA ~ D, kern = "gauss", deg = 0, data = d, alpha = alpha)
+plot(a)
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+m2 <- locfit(CUA ~ D, kern = "gauss", deg = 0, data = d, alpha = alfa_star)
+summary(m2)
+```
+
+Podemos ahora ver el ajuste óptimo con otros para comparar
+
+```{r}
+b0 <- locfit(CUA ~ D, kern="gauss", data = d, deg = 0, alpha = 0.15) 
+b9 <- locfit(CUA ~ D, kern="gauss", data = d, deg = 0, alpha = 0.99)
+m2 <- locfit(CUA ~ D, kern="gauss", data = d, deg = 0, alpha = alfa_star)
+	
+plot(d$D, d$CUA , col="darkgrey", main = "Nadaraya-Watson")
+legend("bottomleft", 
+       lty = 1,
+       col = c("red","blue","green"), 
+       legend=c(paste("bandwidth =", c( 0.15, 0.99, alfa_star))), bty = "n", lwd = 1.5)
+lines(d$D, d$CUA, lwd=2)
+lines(d$D, fitted(b0), col = "red",  lwd = 1.5) 
+lines(d$D, fitted(b9), col = "blue", lwd = 1.5) 
+lines(d$D, fitted(m2), col = "orange", lwd = 3) 
+```
+
+Una vez estimado el modelo óptimo, podemos obtener más información
+
+```{r}
+qqnorm(residuals(m2)) #qq-plot de residuales
+# calcula ic de 95% con estimador local de varianza
+crit(m2) <- crit(m2, cov = 0.95)
+plot(m2, band = "local") # gráfica
+predict(m2, se = T, band= "local") # valores
+
+predict(m2, newdata = c(1641020450, 1641079000),se = T)  # nuevos valores
+```
+
+El modelo es similar si queremos hacer ajustes con grados superiores. 
+
+```{r}
+alpha <- seq(0.15, 0.99, by = 0.01)
+# Los siguientes argumentos son para el caso NW
+a <- gcvplot(CUA ~ D, deg = 1, data = d, alpha = alpha)
+plot(a)
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+m3 <- locfit(CUA ~ D, kern = "gauss", deg = 0, data = d, alpha = alfa_star)
+summary(m3)
+```
+
+Intervalos de confianza bootstrap:
+
+```{r}
+# Paso 1 -- gráfica de replicas individuales
+
+plot(d$D, d$CUA, type="n")
+
+# Paso 2 -- Iteraciones bootstrap
+set.seed(100)
+alfa_star = 0.5
+B <- 1000  
+yfit <- matrix(nrow = length(d$D), ncol = B)
+for (i in 1:B) {
+  ind <- sample(1:length(d$D), size = length(d$D), replace=TRUE)
+  # print(head(randsitenum))
+  x <- as.vector(d$D[ind])
+  y <- as.vector(d$CUA[ind])
+  locboot <- locfit(y ~ x, deg = 1, alpha = alfa_star)
+  predboot <- predict(locboot, newdata = sort(x))
+  yfit[,i] <- predboot
+  # note plotting lines is slowww
+  lines(sort(x), yfit[,i], lwd=2, col = rgb(0.5,0.5,0.5,0.10))
+}
+
+# Paso 3 -- Datos ajustados originales
+m4 <- locfit(d$CUA ~ d$D, deg = 1, alpha = alfa_star)
+m4p <- predict(m4, newdata = d$D)
+lines(d$D, m4p, lwd=2, col="blue")
+
+# Step 4 -- Dibuja el intervalo bootstrap
+yfit95 <- apply(yfit, 1, function(x) quantile(x, prob = 0.95, na.rm=T))
+yfit05 <- apply(yfit, 1, function(x) quantile(x, prob = 0.05, na.rm=T))
+lines(d$D, yfit95, lwd=1, col="red")
+lines(d$D, yfit05, lwd=1, col="red")
+```
+
+## Ajuste para dos variables
+
+Los modelos de regresión no paramétrica se pueden extender sin problemas a casos multivariados. Como ejemplo, consideremos los datos de Prestigio ocupacional y consideremos dos variables.
+
+```{r}
+datos <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/Prestige.txt", 
+                    sep = "",
+                    header =T)
+head(datos)
+```
+
+Ajustando el modelo con las variables de ingreso y educación
+
+```{r}
+library(locfit)
+par(mfrow = c(1,2))
+m2 <- locfit(prestige ~ lp(income/1000, education, nn  = 0.8, deg = 3), data = datos)
+plot(m2, type = "contour") # puede ser contour, persp, image
+plot(m2, type = "persp")
+```
+
+
+También podemos aplicar un modelo loess para más dimensiones
+
+```{r}
+(ml <- loess(prestige ~ I(income/1000) + education, span = 0.4, data= datos))
+# aproximación de R^2
+cor(datos$prestige,ml$fitted)
+```
+
+Creamos un grid para evaluar el ajuste
+
+```{r}
+library(RColorBrewer)  # para crear una paleta de colores 
+grid.inc <- seq(min(datos$income), max(datos$income), length.out = 50)
+grid.edu <- seq(min(datos$education), max(datos$education), length.out = 50)
+grid.mar <- list(income = grid.inc, education = grid.edu)
+# obten valores interpolados
+prestige.ip <- predict(ml, expand.grid(grid.mar))
+prestige.z <- matrix(prestige.ip, length(grid.inc), length(grid.edu))
+# grafica los valores interpolados
+nclr <- 8
+plotclr <- brewer.pal(nclr, "PuOr")
+plotclr <- plotclr[nclr:1] # ordena colores
+image(grid.inc, grid.edu, prestige.z, col=plotclr)
+contour(grid.inc, grid.edu, prestige.z, add=TRUE)
+with(datos, points(income, education, pch = 19,col = "yellow"))
+```
+
+
+## Splines de interpolación
+
+
+### Ejemplo 1
+
+```{r}
+par(mfrow= c (1,2))
+x <- c(10, 40, 40, 20, 60, 50, 25, 16, 30, 60, 80, 75, 65, 100)
+y <- c(85, 95, 65, 55, 100, 70, 35, 10, 10, 36, 60, 65, 55, 50)
+plot(x,y)
+u <- 1:length(x)
+uu <- seq(1, length(u), length = 250)
+
+# funciones para ajustar splines interpolantes: splinefun
+fit1 <- splinefun(u,x) 
+xx <- fit1(uu)
+fit2 <- splinefun(u,y) 
+yy <- fit2(uu)
+plot(x, y, axes = F, xlab = "", ylab = "", ylim = c(0, 100), xlim = c(0, 100))
+lines(xx, yy, type = "l")
+```
+
+
+### Ejemplo 2
+
+```{r}
+par(mfrow=c(1,1))
+x <- 4*pi*c(0, 1, runif(20))
+y <- sin(x)
+fit <- splinefun(x,y)
+xx <- seq(0, max(x), length = 100) # nodos para ajuste
+yy <- fit(xx)
+plot(x, y)
+lines(xx, yy, lwd=3, col="red")
+```
+
+
+### Ejemplo 3: interpolación en dos dimensiones
+
+```{r}
+library(akima) # uso de la función bicubic
+# Grid y evaluación de la función en el grid
+x <- seq(-1, 1, by = 0.50)
+y <- seq(-1, 1, by = 0.50)
+z <- outer(x, y, function(x,y){ sin(10*(x^2 + y^2)) })
+# creación del grid
+xy <- expand.grid(seq(-1, 1, length = 80), seq(-1, 1, length = 80))
+fit <- bicubic(x, y, z, xy[,1], xy[,2])
+xx <- seq(-1, 1, length = 80)
+yy <- seq(-1, 1, length = 80)
+zz <- matrix(fit$z, nrow = 80)
+par(mfrow=c(1,2))
+#grafica de superficie:
+persp(x = xx, y = yy, z = zz, col = "lightblue", phi = 45, theta = -60,
+xlab = "X", ylab = "Y", zlab = "Z");
+#gráfica de contorno:
+image(x = seq(-1, 1, length = 80), y = seq(-1, 1, length = 80),
+z = matrix(fit$z, nrow = 80), xlab = "X", ylab = "Y")
+contour(x = seq(-1, 1, length = 80), y = seq(-1, 1, length = 80),
+z = matrix(fit$z, nrow = 80), add = TRUE)
+```
+
