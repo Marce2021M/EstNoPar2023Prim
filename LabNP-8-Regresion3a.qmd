@@ -25,7 +25,7 @@ La siguiente base de datos proviene de la Red Automática de Monitoreo Atmosfér
 
 ```{r}
 library(readxl)
-d <- read_xls("../data/2022O3.xls",na = "-99")
+d <- read_xls("./2022O3.xls",na = "-99")
 # Agregamos una columna que combine la fecha y la hora
 d$D <- as.POSIXct(paste(as.character(d$FECHA),d$HORA), format = "%Y-%m-%d %H")
 dias <- 1 # días a considerar para el modelo
@@ -228,6 +228,8 @@ with(datos, points(income, education, pch = 19,col = "yellow"))
 
 
 ## Splines de interpolación
+
+Son funciones polinomiales en segmentos que concatenan para interpolar o aproximar las gráficas de dispersión de puntos generados en pares(X_i,Y_i).
 
 
 ### Ejemplo 1
