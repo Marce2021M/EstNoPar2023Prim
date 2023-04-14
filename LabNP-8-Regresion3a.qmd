@@ -229,7 +229,7 @@ with(datos, points(income, education, pch = 19,col = "yellow"))
 
 ## Splines de interpolación
 
-Son funciones polinomiales en segmentos que concatenan para interpolar o aproximar las gráficas de dispersión de puntos generados en pares(X_i,Y_i).
+Son funciones polinomiales en segmentos que concatenan para interpolar o aproximar las gráficas de dispersión de puntos generados en pares(X_i,Y_i). 
 
 
 ### Ejemplo 1
