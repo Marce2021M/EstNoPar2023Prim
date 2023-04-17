@@ -1,0 +1,27 @@
+# Examen parcial 2 Estadística No Paramétrica
+
+** Marcelino Sánchez Rodríguez**
+
+**191654**
+
+1. Usando los datos FishMercury del paquete resampledata, que contiene los niveles de mercurio (en partes por millón, ppm) para 30 peces capturados en lagos de Minnesota:
+Hacer un histograma de los datos. Describir lo que se observa.
+Hacer 200 réplicas bootstrap de la media y obtener el error estándar y el intervalo bootstrap percentil 95 %.
+
+```{r}
+## cargamos paquetes necesarios y data
+library(resampledata)
+
+data <- FishMercury
+
+hist(FishMercury[,1], main = "Histograma de los datos", xlab = "Niveles de mercurio (ppm)", ylab = "Frecuencia", col = "blue", breaks= 25)
+```
+
+```{block}
+
+```
+
+Quitar el outlier, y hacer réplicas boostrap de la media de los datos sin el outlier. Obtener el error estándar y el intervalo bootstrap percentil 95 %.
+¿Qué efecto tuvo el remover el outlier en la distribución bootstrap, y en el error estándar?
+
+
