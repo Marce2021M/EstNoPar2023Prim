@@ -168,7 +168,6 @@ p
 No es significativa, por lo que no podemos rechazar la hipótesis nula de que las medias de los pesos de los bebés nacidos en Wyoming y Alaska son iguales. Es decir, en realidad no hay diferencias en tre los pesos de los distintos estados.
 ```
 
-```
 # Pregunta 3
 
 La función smooth.spline del paquete básico stats permite dar los grados de libertad explícitamente. Escribir una función que elija el número de grados de libertad vía validación cruzada.
@@ -317,6 +316,7 @@ lines(pol_local_4, col = "blue", lwd = 2)
 ```{block}
 En estos nuevos estimadores notamos que se sigue una tendencia de lineal horizontal. Sin embargo, en estos casos notamos que en el estimador NW hay una mejor estabilidad en los extremos y de cierta forma logra encontrar cierta dinámica que ocurren en el centro de la gráfica donde hay mayor cantidad de datos.
 ```
+
 # Problema 5
 
 Simular un conjunto de datos como sigue:
@@ -331,16 +331,13 @@ Ajustar un spline a los datos simulados.
 
 ```{r}
 # Ajustar un spline a los datos simulados
-splineFit <- smooth.spline(x,y, df = 5)
+salida <- cv_smooth_spline(x, y, nk = 10, df_seq = seq(2, 20, by = 1))
+salida[1]
+
+splineFit <- smooth.spline(x,y, df = salida[1])
 plot(x,y, pch = 19, col = "blue")
 lines(x, predict(splineFit)$y, col = "red", lwd = 2)
 
-# Ajustamos un spline de interpolación a los datos simulados 
-fit <- splinefun(x,y)
-xx <- seq(0, max(x), length = 100)
-yy <- fit(xx)
-plot(x, y)
-lines(xx, yy, lwd=3, col="green")
 ```
 
 # Problema 6
