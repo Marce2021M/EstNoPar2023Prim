@@ -1,6 +1,6 @@
 # Examen parcial 2 Estadística No Paramétrica
 
-** Marcelino Sánchez Rodríguez**
+**Marcelino Sánchez Rodríguez**
 
 **191654**
 
@@ -37,7 +37,7 @@ Tn <- function(data, index){mean(data[index])}
 
 ndata <- length(data1)
 
-bootsFish2 <- boot(data = data1, statistic = Tn, R = 2000)
+bootsFish2 <- boot(data = data1, statistic = Tn, R = 200)
 
 (mean(bootsFish2$t) )  # estimación de media
 
@@ -53,7 +53,7 @@ hist(bootsFish2$t, breaks = 50)
 
 ##quitando outlier
 
-bootsFish3 <- boot(data = data1[-1], statistic = Tn, R = 2000)
+bootsFish3 <- boot(data = data1[-1], statistic = Tn, R = 200)
 
 (mean(bootsFish3$t) )  # estimación de media
 
@@ -139,7 +139,7 @@ Obtener el estimador del sesgo bootstrap. ¿Qué fracción representa del error 
 estDiffReal <- mean(wy_list) - mean(ak_list)
 sesgo <- - mean(diff_boot_list)-estDiffReal
 
-sesgo^2/(sd(diff_boot_list)^2)# checar qué onda con esto
+sesgo/(sd(diff_boot_list))# checar qué onda con esto
 ```
 
 
@@ -156,7 +156,7 @@ for (i in 1:Bnum) {
   indices <- sample(ind, size = length(wy_list), replace = F)
   x1 <- z[indices]
   x2 <- z[-indices]
-  reps[i] <- t.t.test(x1,x2)$statistic
+  reps[i] <- t.test(x1,x2)$statistic
 }
 
 p <- mean(c(t0,reps) > t0)
@@ -164,19 +164,78 @@ p <- mean(c(t0,reps) > t0)
 p
 ```
 
+```{block}
+No es significativa, por lo que no podemos rechazar la hipótesis nula de que las medias de los pesos de los bebés nacidos en Wyoming y Alaska son iguales. Es decir, en realidad no hay diferencias en tre los pesos de los distintos estados.
+```
 
+```
 # Pregunta 3
 
 La función smooth.spline del paquete básico stats permite dar los grados de libertad explícitamente. Escribir una función que elija el número de grados de libertad vía validación cruzada.
 
 ```{r}
-# Checar qué cross validation se refiere
+library(stats)
+
+cv_smooth_spline <- function(x, y, nk = 10, df_seq = seq(2, 20, by = 2)) {
+  # nk: número de particiones para la validación cruzada
+  # df_seq: secuencia de grados de libertad a probar
+  # datos
+  n <- length(x)
+  # indices de los datos
+  idx <- seq_len(n)
+  # particiones para la validación cruzada
+  folds <- sample(rep(1:nk, length.out = n))
+  # mse para cada df
+  mse <- rep(NA, length(df_seq))
+
+  for (i in seq_along(df_seq)) {
+    # df actual
+    df <- df_seq[i]
+    # mse para cada partición
+    cv_mse <- rep(NA, nk)
+    for (k in seq_len(nk)) {
+        # indices de los datos de entrenamiento
+      train_idx <- which(folds != k)
+        # ajustar el modelo
+      fit <- smooth.spline(x[idx[train_idx]], y[idx[train_idx]], df = df)
+        # mse en la partición k
+      cv_mse[k] <- mean((y[idx[-train_idx]] - predict(fit, x[idx[-train_idx]])$y)^2)
+    }
+    # mse promedio para el df actual
+    mse[i] <- mean(cv_mse)
+  }
+  # df con el mse más pequeño
+  best_df <- df_seq[which.min(mse)]
+  # regresar los resultados
+  return(list(best_df = best_df, mse = mse, df_seq = df_seq))
+}
+
+## EJEMPLO
+set.seed(191654)
+x <- c(runif(100, 0, 10))
+y <- c(cos(x) + rnorm(100, 0, 0.5))
+k <- 5
+
+plot(x, y)
+
+# Estimar el número óptimo de grados de libertad usando validación cruzada
+
+salida <- cv_smooth_spline(x, y, nk = k, df_seq = seq(2, 20, by = 1))
+salida[1]
+
+# Ajustar el smooth spline con el número óptimo de grados de libertad
+fit <- smooth.spline(x, y, df=salida[1])
+
+# Graficar los datos y la curva ajustada
+plot(x, y, pch=20, col="blue", xlab="x", ylab="y")
+lines(fit, col="red")
+legend("topright", legend=c("datos", "smooth spline"), col=c("blue", "red"), pch=20, lty=1)
 
 ```
 
 # Pregunta 4
 
-El archivo earthquake.dat contiene registros de niveles de agua para un conjunto de seis pozos en California (descripción detallada: earthquake.txt.Las medidas se hicieron a lo largo del tiempo. Cons- truir un estimador LOESS para examinar tendencias en los datos. ¿El estimador LOESS es exitoso? ¿En dónde falla para capturar las tendencias de los datos? Repetir el ejercicio con NW y con polinomios locales.
+El archivo earthquake.dat contiene registros de niveles de agua para un conjunto de seis pozos en California (descripción detallada: earthquake.txt.Las medidas se hicieron a lo largo del tiempo. Cons- truir un estimador LOESS para examinar tendencias en los datos. ¿El estimador LOESS es exitoso? ¿En dónde falla para capturar las tendencias de los datos?
 
 ```{r}
 
@@ -204,6 +263,60 @@ legend("topright",col = 1:6, legend = grid_span[1:6], lty = 1, lwd = 3)
 
 ```
 
+```{block}
+Por la posición de los datos está ajustando una línea horizontal en
+todos los distintos valores del span que definimos para LOESS. Y en 
+cierta forma, me parece qu está siendo un buen estimador, dado que todos los datos están posicionados de forma horizontal. Sin embargo, igual se nota que en los extremos el estimador LOESS deja de comportarse como una línea horizontal y se dispersa a disitintas direcciones según el valor del span.
+```
+ Repetir el ejercicio con NW y con polinomios locales.
+```{r}
+# Nadarayan-Watson
+library(locfit)
+alpha <- seq(0.15, 0.99, by = 0.01)
+a <- gcvplot(data4$mag ~ t, kern = "gauss", deg = 0, data = data4, alpha = alpha)
+plot(a)
+# Valor de alpha que minimiza los valores de a
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+# Modelo con alpha_star
+modelo <- locfit(data4$mag ~ t, kern = "gauss", deg = 0, data = data4, alpha = alfa_star)
+summary(modelo)
+
+#comparando distintos modelos con distinta alpha
+b0 <- locfit(data4$mag ~ t, kern="gauss", data = data4, deg = 0, alpha = 0.15) 
+b9 <- locfit(data4$mag ~ t, kern="gauss", data = data4, deg = 0, alpha = 0.99)
+m2 <- locfit(data4$mag ~ t, kern="gauss", data = data4, deg = 0, alpha = alfa_star)
+
+# Gráfica de los modelos
+plot(data4$mag , col="darkgrey", main = "Nadaraya-Watson")
+legend("bottomleft", 
+       lty = 1,
+       col = c("red","blue","orange"), 
+       legend=c(paste("bandwidth =", c( 0.15, 0.99, alfa_star))), bty = "n", lwd = 1.5)
+lines(fitted(b0), col = "red",  lwd = 1.5) 
+lines(fitted(b9), col = "blue", lwd = 1.5) 
+lines(fitted(m2), col = "orange", lwd = 3) 
+
+# calcula ic de 95% con estimador local de varianza
+crit(m2) <- crit(m2, cov = 0.95)
+plot(m2, band = "local") # gráfica
+predict(m2, se = T, band= "local") # valores
+```
+
+```{r}
+# Ajuste de polinomios locales de grado 3 y 4
+pol_local_3 <- locfit(data4$mag ~ t, deg = 3, data = data4)
+plot(data4$mag, lwd=2)
+lines(pol_local_3, col = "red", lwd = 2)
+#--------------------------------------------
+pol_local_4 <- locfit(data4$mag ~ t, deg = 4, data = data4)
+lines(pol_local_4, col = "blue", lwd = 2)
+```
+
+
+```{block}
+En estos nuevos estimadores notamos que se sigue una tendencia de lineal horizontal. Sin embargo, en estos casos notamos que en el estimador NW hay una mejor estabilidad en los extremos y de cierta forma logra encontrar cierta dinámica que ocurren en el centro de la gráfica donde hay mayor cantidad de datos.
+```
 # Problema 5
 
 Simular un conjunto de datos como sigue:
@@ -235,12 +348,66 @@ lines(xx, yy, lwd=3, col="green")
 Con los datos en el archivo motor.dat, utilizando las variables time (tiempo en milisegundos) y
 accel (aceleración de la cabeza medida en g), ajustar los siguientes modelos:
 NW
-Polinomio local de grado 3 Spline cúbico
+Polinomio local de grado 3 
+Spline cúbico
 Obtener en cada caso, la matriz sombrero. ¿Qué modelo es mejor?
 
 ```{r}
+library(locfit)
+data6 <- read.table("/Users/marcelinosanchezrodriguez/itamRepositories/estNoPar2023Prim/examenEstNoPar/motor.dat", header = T, sep ="\t")
 
 ```
+
+```{r}
+# Ajuste del polinomio local de grado 3
+pol_local_3 <- locfit(data6$accel ~ lp(data6$times, scale = T, nn = 0.5, deg = 3), data = data6)
+
+plot(lp(data6$times,data6$accel))
+lines(pol_local_3)
+
+# Matriz Hat para el modelo de polinomio local de grado 3
+#hat_pol_3 <- predict(diag(4), se.fit = TRUE, type = "hat")
+
+#--------------------------------------------
+# Ajuste del spline cúbico
+splineFit <- smooth.spline(data6$times,data6$accel, df = 10)
+plot(data6$times,data6$accel, pch = 19, col = "blue", main = "Spline cúbico")
+lines(data6$times, predict(splineFit)$y, col = "red", lwd = 2)
+
+# Matriz Hat para el modelo de spline cúbico
+#hat_spline <- predict(diag(4), se.fit = TRUE, type = "hat")
+
+#--------------------------------------------
+
+# Ajuste del modelo NW
+alpha <- seq(0.15, 0.99, by = 0.01)
+a <- gcvplot(data6$accel ~ data6$times, kern = "gauss", deg = 0, data = data6, alpha = alpha)
+
+# Valor de alpha que minimiza los valores de a
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+
+modelo <- locfit(data6$accel ~ data6$times, kern = "gauss", deg = 0, data = data6, alpha = alfa_star)
+summary(modelo)
+
+b0 <- locfit(data6$accel ~ data6$times, kern="gauss", data = data6, deg = 0, alpha = 0.15)
+b9 <- locfit(data6$accel ~ data6$times, kern="gauss", data = data6, deg = 0, alpha = 0.99)
+m2 <- locfit(data6$accel ~ data6$times, kern="gauss", data = data6, deg = 0, alpha = alfa_star)
+
+plot(data6$accel , col="darkgrey", main = "Nadaraya-Watson")
+legend("bottomleft", 
+       lty = 1,
+       col = c("red","blue","orange"), 
+       legend=c(paste("bandwidth =", c( 0.15, 0.99, alfa_star))), bty = "n", lwd = 1.5)
+lines(fitted(b0), col = "red",  lwd = 1.5)
+lines(fitted(b9), col = "blue", lwd = 1.5)
+lines(fitted(m2), col = "orange", lwd = 3)
+
+# Matriz Hat para el modelo NW
+#hat_nw <- predict(diag(4), se.fit = TRUE, type = "hat")
+
+```
+
 
 # Problema 7
 
@@ -248,12 +415,118 @@ En el problema anterior, para cada uno de los modelos,
 Calcular una banda de confianza del 95 % alrededor del estimador.
 
 ```{r}
+# Banda de confianza del 95% para el modelo de polinomio local de grado 3
+
+# Paso 1 -- gráfica de replicas individuales
+
+plot(data6$times,data6$accel)
+
+# Paso 2 -- Iteraciones bootstrap
+set.seed(100)
+alfa_star
+B <- 1000  
+yfit <- matrix(nrow = length(data6$times), ncol = B)
+for (i in 1:B) {
+  ind <- sample(1:length(data6$times), size = length(data6$times), replace=TRUE)
+  # print(head(randsitenum))
+  x <- as.vector(data6$times[ind])
+  y <- as.vector(data6$accel[ind])
+  locboot <- locfit(y ~ lp(x, scale = T, nn = 0.5, deg = 3))
+  predboot <- predict(locboot, newdata = sort(x))
+  yfit[,i] <- predboot
+  # note plotting lines is slowww
+  lines(sort(x), yfit[,i], lwd=2, col = rgb(0.5,0.5,0.5,0.10))
+}
+
+# Paso 3 -- Datos ajustados originales
+
+m4p <- predict(m2, newdata = data6$times)
+lines(data6$times, m4p, lwd=2, col="blue")
+
+# Step 4 -- Dibuja el intervalo bootstrap
+yfit95 <- apply(yfit, 1, function(x) quantile(x, prob = 0.95, na.rm=T))
+yfit05 <- apply(yfit, 1, function(x) quantile(x, prob = 0.05, na.rm=T))
+lines(data6$times, yfit95, lwd=1, col="red")
+lines(data6$times, yfit05, lwd=1, col="red")
+
+#--------------------------------------------
+# Banda de confianza del 95% para el modelo de spline cúbico
+library(npreg)
+splineFit <- ss(data6$times,data6$accel, df = 10)
+a <- boot(splineFit, R = 10)
+plot(a)
+
+#--------------------------------------------
+# Banda de confianza del 95% para el modelo NW
+
+# Paso 1 -- gráfica de replicas individuales
+
+plot(data6$times,data6$accel)
+
+# Paso 2 -- Iteraciones bootstrap
+set.seed(100)
+alfa_star
+B <- 1000  
+yfit <- matrix(nrow = length(data6$times), ncol = B)
+for (i in 1:B) {
+  ind <- sample(1:length(data6$times), size = length(data6$times), replace=TRUE)
+  # print(head(randsitenum))
+  x <- as.vector(data6$times[ind])
+  y <- as.vector(data6$accel[ind])
+  locboot <- locfit(y ~ x, kern="gauss", deg = 0, alpha = alfa_star)
+  predboot <- predict(locboot, newdata = sort(x))
+  yfit[,i] <- predboot
+  # note plotting lines is slowww
+  lines(sort(x), yfit[,i], lwd=2, col = rgb(0.5,0.5,0.5,0.10))
+}
+
+# Paso 3 -- Datos ajustados originales
+
+m4p <- predict(m2, newdata = data6$times)
+lines(data6$times, m4p, lwd=2, col="blue")
+
+# Step 4 -- Dibuja el intervalo bootstrap
+yfit95 <- apply(yfit, 1, function(x) quantile(x, prob = 0.95, na.rm=T))
+yfit05 <- apply(yfit, 1, function(x) quantile(x, prob = 0.05, na.rm=T))
+lines(data6$times, yfit95, lwd=1, col="red")
+lines(data6$times, yfit05, lwd=1, col="red")
 
 ```
 
-Analizar si los residuales cumplen con los supuestos del modelo, verificando normalidad y va- rianza constante.
+Analizar si los residuales cumplen con los supuestos del modelo, verificando normalidad y varianza constante.
 
 ```{r}
+# Residuales del modelo de polinomio local de grado 3
+resid_pol_3 <- resid(pol_local_3)
+plot(resid_pol_3)
+qqnorm(resid_pol_3)
+
+# Prueba de normalidad de Shapiro-Wilk
+shapiro.test(resid_pol_3)
+
+#--------------------------------------------
+# Residuales del modelo de spline cúbico
+resid_spline <- resid(splineFit)
+plot(resid_spline)
+qqnorm(resid_spline)
+
+# Prueba de normalidad de Shapiro-Wilk
+shapiro.test(resid_spline)
+
+#--------------------------------------------
+# Residuales del modelo NW
+resid_nw <- resid(m2)
+plot(resid_nw)
+qqnorm(resid_nw)
+
+# Prueba de normalidad de Shapiro-Wilk
+shapiro.test(resid_nw)
+```
+
+```{block}
+En los 3 modelos notamos que tenemos problemas de homocedasticidad, por lo que tenemos fallos en los supuestos del modelo, en particular, se presenta en medio de la gráfica.
+
+Por último, se puede notar por gráfica y test de Shapiro que los residuales siguen una distribución normal. En este caso se cumplen los supuestos.
 
 ```
 
@@ -272,17 +545,72 @@ Calcular los rendimientos diarios en logaritmos de los índices DAX y FTSE
 dax_ftse <- data8[, c("DAX", "FTSE")]
 
 # Calcular los rendimientos diarios en logaritmos de DAX y FTSE
-dax_ftse_ret <- diff(log(dax_ftse), lag=1)
+dax_ftse_ret <- data.frame(diff(log(dax_ftse), lag=1))
 
 ```
 
-Ajustar un modelo de regresión no paramétrica NW entre los log-rendimientos de DAX en función de los log-rendimientos de FTSE.
+Ajustar un modelo de regresión no paramétrica NW entre los log-rendimientos de DAX en función de los log-rendimientos de FTSE. Obtener el ancho de banda óptimo utilizando un kernel gaussiano y utilizando un kernel uniforme. ¿Se puede decir que alguno de los modelos es mejor que otro en este caso?
 
 ```{r}
+# Gráfica de dispersión entre los log-rendimientos de DAX y FTSE
+plot(dax_ftse_ret$FTSE,dax_ftse_ret$DAX)
+
+# Ajustar un modelo de regresión no paramétrica NW entre los log-rendimientos de DAX en función de los log-rendimientos de FTSE.
+
+# Ajuste del modelo NW GAUSSIANO
+alpha <- seq(0.15, 0.99, by = 0.01)
+a <- gcvplot(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern = "gauss", deg = 0, data = data8, alpha = alpha)
+
+# Valor de alpha que minimiza los valores de a
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+
+modelo <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern = "gauss", deg = 0, data = data8, alpha = alfa_star)
+summary(modelo)
+
+b0 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="gauss", data = data8, deg = 0, alpha = 0.15)
+b9 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="gauss", data = data8, deg = 0, alpha = 0.99)
+m2 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="gauss", data = data8, deg = 0, alpha = alfa_star)
+
+plot(dax_ftse_ret$DAX , col="darkgrey", main = "Nadaraya-Watson Gaussiano")
+legend("bottomleft", 
+       lty = 1,
+       col = c("red","blue","orange"), 
+       legend=c(paste("bandwidth =", c( 0.15, 0.99, alfa_star))), bty = "n", lwd = 1.5)
+lines(fitted(b0), col = "red",  lwd = 1.5)
+lines(fitted(b9), col = "blue", lwd = 1.5)
+lines(fitted(m2), col = "orange", lwd = 3)
+
+#--------------------------------------------
+# Ajuste del modelo NW UNIFORME
+alpha <- seq(0.15, 0.99, by = 0.01)
+a <- gcvplot(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern = "rect", deg = 0, data = data8, alpha = alpha)
+
+# Valor de alpha que minimiza los valores de a
+alfa_star <- a$alpha[which.min(a$values)]
+alfa_star
+
+modelo <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern = "rect", deg = 0, data = data8, alpha = alfa_star)
+summary(modelo)
+
+b0 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="rect", data = data8, deg = 0, alpha = 0.15)
+b9 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="rect", data = data8, deg = 0, alpha = 0.99)
+m2 <- locfit(dax_ftse_ret$DAX ~ dax_ftse_ret$FTSE, kern="rect", data = data8, deg = 0, alpha = alfa_star)
+
+plot(dax_ftse_ret$DAX , col="darkgrey", main = "Nadaraya-Watson Uniforme")
+legend("bottomleft", 
+       lty = 1,
+       col = c("red","blue","orange"), 
+       legend=c(paste("bandwidth =", c( 0.15, 0.99, alfa_star))), bty = "n", lwd = 1.5)
+lines(fitted(b0), col = "red",  lwd = 1.5)
+lines(fitted(b9), col = "blue", lwd = 1.5)
+lines(fitted(m2), col = "orange", lwd = 3)
+
 
 ```
 Obtener el ancho de banda óptimo utilizando un kernel gaussiano y utilizando un kernel uniforme. ¿Se puede decir que alguno de los modelos es mejor que otro en este caso?
 
-```{r}
-
+```{block}
+No, porque en los dos se termina de la misma forma aunque se nota menor variabilidad en el de kernel uniforme
 ```
+
