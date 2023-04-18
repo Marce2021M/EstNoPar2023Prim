@@ -4,7 +4,8 @@
 
 **191654**
 
-1. Usando los datos FishMercury del paquete resampledata, que contiene los niveles de mercurio (en partes por millón, ppm) para 30 peces capturados en lagos de Minnesota:
+## Pregunta 1
+Usando los datos FishMercury del paquete resampledata, que contiene los niveles de mercurio (en partes por millón, ppm) para 30 peces capturados en lagos de Minnesota:
 Hacer un histograma de los datos. Describir lo que se observa.
 Hacer 200 réplicas bootstrap de la media y obtener el error estándar y el intervalo bootstrap percentil 95 %.
 
@@ -12,16 +13,276 @@ Hacer 200 réplicas bootstrap de la media y obtener el error estándar y el inte
 ## cargamos paquetes necesarios y data
 library(resampledata)
 
-data <- FishMercury
+data1 <- FishMercury$Mercury
 
 hist(FishMercury[,1], main = "Histograma de los datos", xlab = "Niveles de mercurio (ppm)", ylab = "Frecuencia", col = "blue", breaks= 25)
 ```
 
 ```{block}
+Observamos que la mayoría de los datos están concentrados cerca del
+0 y al parecer hay un outlier cerca de 2 ppm. 
+```
+
+
+Quitar el outlier, y hacer réplicas boostrap de la media de los datos sin el outlier. Obtener el error estándar y el intervalo bootstrap percentil 95 %.
+
+```{r}
+library(boot)
+library(bootstrap)
+
+set.seed(100)
+
+## sin quitar outlier
+Tn <- function(data, index){mean(data[index])}
+
+ndata <- length(data1)
+
+bootsFish2 <- boot(data = data1, statistic = Tn, R = 2000)
+
+(mean(bootsFish2$t) )  # estimación de media
+
+(sd(bootsFish2$t)) #estimador de desviación estándar
+
+#intervalo de confianza
+(confFish <- boot.ci(bootsFish2, conf = .95, type = "perc"))
+
+#distribución bootstrap
+hist(bootsFish2$t, breaks = 50)
+
+##---------------------------------------------------------------------------------------------
+
+##quitando outlier
+
+bootsFish3 <- boot(data = data1[-1], statistic = Tn, R = 2000)
+
+(mean(bootsFish3$t) )  # estimación de media
+
+(sd(bootsFish3$t)) #estimador de desviación estándar
+
+#intervalo de confianza
+(confFish2 <- boot.ci(bootsFish3, conf = .95, type = "perc"))
+
+#distribución bootstrap
+hist(bootsFish3$t, breaks = 50)
 
 ```
 
-Quitar el outlier, y hacer réplicas boostrap de la media de los datos sin el outlier. Obtener el error estándar y el intervalo bootstrap percentil 95 %.
 ¿Qué efecto tuvo el remover el outlier en la distribución bootstrap, y en el error estándar?
 
+```{block}
+Hizo que el intervalo de confianza fuera más chica ya que la desviación estándar fue menor, y que la distribución bootstrap fuera más simétrica.
+```
 
+## Pregunta 2
+
+2. Con los datos Girls2004 del paquete resampledata,
+
+```{r}
+library(resampledata)
+data2 <- Girls2004
+```
+
+Obtener estadísticas resumen de los pesos de las bebés nacidas en Wyoming (WY) y Alaska (AK) (hacer un análisis separado para cada estado).
+
+```{r}
+# Estadísticas resumen para bebés nacidos en Wyoming (WY)
+wy_data <- subset(data2, State == "WY")
+summary(wy_data$Weight)
+hist(wy_data$Weight, main = "Histograma de los datos WY", xlab = "Peso (libras)", ylab = "Frecuencia", col = "blue", breaks= 15)
+
+# Estadísticas resumen para bebés nacidos en Alaska (AK)
+ak_data <- subset(data2, State == "AK")
+summary(ak_data$Weight)
+hist(ak_data$Weight, main = "Histograma de los datos AK", xlab = "Peso (libras)", ylab = "Frecuencia", col = "blue", breaks= 15)
+```
+
+Hacer bootstrap de la diferencia de medias, graficar la distribución y dar las estadísticas sumarias. Obtener un intervalo boostrap percentil de 95 %, e interpretar este intervalo.
+
+```{r}
+Bnum <- 1000
+
+wy_list <- wy_data$Weight
+ak_list <- ak_data$Weight
+
+diff_boot_list <- c()
+
+for (i in 1:Bnum) {
+  wy_sample <- sample(wy_list, length(wy_list), replace = TRUE)
+  ak_sample <- sample(ak_list, length(ak_list), replace = TRUE)
+  wy_boot <- mean(wy_sample)
+  ak_boot <- mean(ak_sample)
+  diff_boot <- wy_boot - ak_boot
+  diff_boot_list <- c(diff_boot_list, diff_boot)
+}
+
+hist(diff_boot_list, main = "Histograma de la diferencia de medias", xlab = "Diferencia de medias", ylab = "Frecuencia", col = "blue", breaks= 15)
+
+summary(diff_boot_list)
+
+#intervalo de confianza
+diff_boot_listOrdered <- sort(diff_boot_list)
+lower <- diff_boot_listOrdered[round(0.025 * Bnum)]
+upper <- diff_boot_listOrdered[round(0.975 * Bnum)]
+lower
+upper
+```
+
+```{block}
+En primer lugar dada la distribución notamos que en general los pesos de los bebés nacidos en Wyoming son menores que los de los bebés nacidos en Alaska. El intervalo de confianza nos dice que la diferencia de medias se encuentra entre 0.5 y 0.1 libras, lo que significa que en promedio los bebés nacidos en Wyoming pesan 0.3 libras menos que los bebés nacidos en Alaska.
+```
+
+
+
+Obtener el estimador del sesgo bootstrap. ¿Qué fracción representa del error estándar bootstrap?
+    
+```{r}
+estDiffReal <- mean(wy_list) - mean(ak_list)
+sesgo <- - mean(diff_boot_list)-estDiffReal
+
+sesgo^2/(sd(diff_boot_list)^2)# checar qué onda con esto
+```
+
+
+Realizar una prueba de permutación para ver si la diferencia de medias en los pesos es significativa estadísticamente y dar una conclusión.
+```{r}
+Bnum <- 1000
+
+z <- c(wy_list, ak_list)
+ind<- 1:length(z)
+reps <- numeric(Bnum)
+t0 <- t.test(wy_list, ak_list)$statistic
+
+for (i in 1:Bnum) {
+  indices <- sample(ind, size = length(wy_list), replace = F)
+  x1 <- z[indices]
+  x2 <- z[-indices]
+  reps[i] <- t.t.test(x1,x2)$statistic
+}
+
+p <- mean(c(t0,reps) > t0)
+
+p
+```
+
+
+# Pregunta 3
+
+La función smooth.spline del paquete básico stats permite dar los grados de libertad explícitamente. Escribir una función que elija el número de grados de libertad vía validación cruzada.
+
+```{r}
+# Checar qué cross validation se refiere
+
+```
+
+# Pregunta 4
+
+El archivo earthquake.dat contiene registros de niveles de agua para un conjunto de seis pozos en California (descripción detallada: earthquake.txt.Las medidas se hicieron a lo largo del tiempo. Cons- truir un estimador LOESS para examinar tendencias en los datos. ¿El estimador LOESS es exitoso? ¿En dónde falla para capturar las tendencias de los datos? Repetir el ejercicio con NW y con polinomios locales.
+
+```{r}
+
+# Cargamos datos
+data4 <- read.fwf("https://raw.githubusercontent.com/jvega68/ENP/main/datos/earthquake.dat", 
+              width = c(17,7,1,7,1,6,4,2,2,80), 
+              header = F, sep ="\t")
+names(data4) <- c("fecha","lat","lat2", "lon","lon2", "depth","mag","lt","Q", "lugar")
+
+t <- 1:length(data4$fecha)
+plot(t,data4$mag)
+# Estimador LOESS
+
+loessFit <- loess(data4$mag ~ t, span = 0.5)
+
+grid_span <- c(0.2,0.3,0.4,0.5,0.6,0.7)
+
+# Graficar varios bandwidths 
+
+for(h in grid_span){
+  m1 <- loess(data4$mag ~ t, span = h, degree = 2)
+  lines(fitted(m1), col = which(grid_span == h), lwd = 3)
+}
+legend("topright",col = 1:6, legend = grid_span[1:6], lty = 1, lwd = 3)
+
+```
+
+# Problema 5
+
+Simular un conjunto de datos como sigue:
+
+```{r}
+set.seed(191654) 
+x <- sort(runif(100))
+y <- x^2 + 0.1*rnorm(100)
+```
+
+Ajustar un spline a los datos simulados.
+
+```{r}
+# Ajustar un spline a los datos simulados
+splineFit <- smooth.spline(x,y, df = 5)
+plot(x,y, pch = 19, col = "blue")
+lines(x, predict(splineFit)$y, col = "red", lwd = 2)
+
+# Ajustamos un spline de interpolación a los datos simulados 
+fit <- splinefun(x,y)
+xx <- seq(0, max(x), length = 100)
+yy <- fit(xx)
+plot(x, y)
+lines(xx, yy, lwd=3, col="green")
+```
+
+# Problema 6
+
+Con los datos en el archivo motor.dat, utilizando las variables time (tiempo en milisegundos) y
+accel (aceleración de la cabeza medida en g), ajustar los siguientes modelos:
+NW
+Polinomio local de grado 3 Spline cúbico
+Obtener en cada caso, la matriz sombrero. ¿Qué modelo es mejor?
+
+```{r}
+
+```
+
+# Problema 7
+
+En el problema anterior, para cada uno de los modelos,
+Calcular una banda de confianza del 95 % alrededor del estimador.
+
+```{r}
+
+```
+
+Analizar si los residuales cumplen con los supuestos del modelo, verificando normalidad y va- rianza constante.
+
+```{r}
+
+```
+
+# Problema 8
+
+Utilizando el conjunto de datos EuStockMarkets que es de los archivos de datos básicos de R, se tienen los precios diarios de 4 indicadores financieros: el índice DAX, el SMI, el CAC y el FTSE.
+
+```{r}
+data8 <- EuStockMarkets
+```
+
+Calcular los rendimientos diarios en logaritmos de los índices DAX y FTSE
+
+```{r}
+# Seleccionar las columnas correspondientes a DAX y FTSE
+dax_ftse <- data8[, c("DAX", "FTSE")]
+
+# Calcular los rendimientos diarios en logaritmos de DAX y FTSE
+dax_ftse_ret <- diff(log(dax_ftse), lag=1)
+
+```
+
+Ajustar un modelo de regresión no paramétrica NW entre los log-rendimientos de DAX en función de los log-rendimientos de FTSE.
+
+```{r}
+
+```
+Obtener el ancho de banda óptimo utilizando un kernel gaussiano y utilizando un kernel uniforme. ¿Se puede decir que alguno de los modelos es mejor que otro en este caso?
+
+```{r}
+
+```
