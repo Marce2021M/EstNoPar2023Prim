@@ -1,0 +1,302 @@
+---
+title: "Lab11: Regresión no paramétrica"
+subtitle: "CART: Árboles de regresión y clasificación"
+lang: es
+author: "Jorge de la Vega"
+date: today
+format:
+  html:
+    page-layout: full
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center")
+```
+
+## Paquetes disponibles.
+
+En `R` se pueden utilizar los paquetes `tree` y `rpart`, aunque se recomienda usar `rpart`. El paquete `partykit` tiene varias funciones para facilitar trabajar con árboles de regresión y clasificación para objetos del paquete `rpart`. El paquete `treemisc` sirve para mejorar la apariencia visual de los árboles ajustados, aunque sólo funciona con `rpart`.
+
+Hay muchos más paquetes. Se puede consultar el [Task View on Machine Learning/Recursive Partitioning](	https://CRAN.R-project.org/view=MachineLearning) en R para ver las opciones. 
+
+## Resolución de modelos de árboles de regresión con `R`.
+
+### Ejemplo1: Datos de Prestigio.
+
+En este ejercicio utilizaré el paquete `tree`. Consideremos la regresión de `prestige` en `income`:
+
+```{r, message = FALSE}
+library(tree)
+library(treemisc)
+Prestige <- read.delim("https://raw.githubusercontent.com/jvega68/ENP/main/datos/Prestige.txt", 
+                       sep  = "")
+arbol <- tree(prestige ~ income, data = Prestige)
+summary(arbol)
+arbol
+
+# graficamos las particiones
+with(Prestige, plot(income,prestige))
+abline(v = c(2409, 3936, 7025.5, 10012))
+segments( x0 =    c(0, 2409, 3936,   7025.5, 10012), y0 = c(21.74, 31.29, 43.36, 54.69, 73.85), 
+          x1 = c(2409, 3936, 7025.5, 10012, 30000), col = "red", lwd = 3)
+```
+
+Para ver el dendrograma:
+
+```{r}
+plot(arbol)
+text(arbol, digits = 2,cex = 0.7)
+```
+
+Podemos hacer predicción del valor y el árbol para estos casos:
+
+```{r}
+predict(arbol, newdata = data.frame(income = c(1000,2000,5000,10000)), type = "vector")
+predict(arbol, newdata = data.frame(income = c(1000,2000,5000,10000)), type = "tree")
+```
+
+Para elegir sobre la complejidad del árbol, podemos realizar una validación cruzada. Por default, toma k-hojas con k = 10:
+
+```{r}
+cv.tree(arbol) # sugiere tomar 4 
+prune.tree(arbol,k = 4)
+```
+
+Ahora consideramos un árbol con más variables
+
+```{r}
+a <- tree(prestige ~ women + education + income , data = Prestige)
+plot(a)
+text(a, digits = 2, cex = 0.7)
+
+plot(cv.tree(a))
+prune.tree(a,3) # devuelve el árbol más cercano 
+```
+
+
+### Ajuste manual de un árbol
+
+Definimos la función que hace las divisiones de los nodos.
+
+```{r}
+# función que calcula el error cuadrático medio en cada nodo
+sse <- function(y, na.rm = T){
+  sum((y - mean(y, na.rm = T))^2, na.rm = T)
+}
+
+split.sse <- function(nodo, x, y){
+  xvals <- sort(unique(nodo[[x]]))  # valores únicos y ordenados de la var x
+  xvals <- xvals[-length(xvals)] + diff(xvals)/2  # puntos medios de los valores x
+  res <- matrix(nrow = length(xvals), ncol = 2)  # matriz de resultados
+  colnames(res) <- c("punto_corte", "ganancia")
+  for( i in seq_along(xvals)){
+    izq <- nodo[nodo[[x]] >= xvals[i], y, drop = T] # izquierda
+    der <- nodo[nodo[[x]] < xvals[i], y, drop = T]  # derecho
+    ganancia <- sse(nodo[[y]]) - sse(izq) - sse(der)
+    res[i, ] <- c(xvals[i], ganancia)
+  }
+  res
+}
+```
+
+Estas funciones se utilizarán en el siguiente conjunto de datos de calidad del aire. Este conjunto de datos contiene información diaria de la calidad del aire en NY de mayo a septiembre de 1973 (153 días). Las variables principales son:
+
+-   `Ozone`: el nivel medio de ozono (en ppb) de 13:00 a 15:00 hr en la Isla Roosevelt.
+-   `Solar.R`: la radiación solar (en Langleys) en la banda de frecuencia 4000-7700 Ä de las 08:00 a las 12:00 hr en Central Park.
+-   `Wind`: la velocidad media del viento (en mph) a las 7:00 y a las 10:00 hr en el aeropuerto LaGuardia.
+-   `Temp`: la temperatura máxima diaria (en grados Farenheit) en el aeropuerto LaGuardia.
+
+Aquí consideramos como variable de respuesta al nivel de ozono, `Ozone`.
+
+```{r}
+aq <- datasets::airquality
+summary(aq)
+pairs(aq[,1:4])
+```
+
+Los datos tienen valores faltantes en la variable de respuesta. Se quitarán esos valores
+
+```{r}
+aq <- airquality[!is.na(aq$Ozone),]
+res <- split.sse(aq, x = "Temp", y = "Ozone")
+# muestra el punto de partición con la reducción más grande
+res[which.max(res[,"ganancia"]),]
+
+# Gráfica de los resultados
+plot(res, type = "o", col = 2)
+```
+
+Lo mismo se puede hacer para cada una de las variables por separado:
+
+```{r}
+sapply(c("Solar.R","Wind","Temp","Month","Day"),
+       function(w){
+         res <- split.sse(aq, x = w, y = "Ozone")
+         res[which.max(res[,"ganancia"]), ]
+       })
+```
+
+El split inicial asociado con `Temp` es el más grande, luego el de `Wind`, `Solar.R`, `Month` y `Day`.
+
+### Ejemplo 3: Hongos comestibles
+
+Este conjunto de datos contiene 8124 hongos descritos en términos de 22 características físicas, como el olor y el color de las esporas. La variable de respuesta `Edibility` toma los valores Edible y Poisonous.
+
+Este es un ejemplo donde la variable de respuesta es categórica, por lo que el resultado es un árbol de clasificación. El propósito es encontrar reglas simples, de ser posible, para evitar comer hongos venenosos. 
+
+```{r}
+data(mushroom, package = "treemisc")
+str(mushroom)
+```
+
+Consideremos un árbol simple con tres particiones y 8 nodos. En este ejemplo, el riesgo del árbol es la proporción de clasificaciones erróneas en la muestra.
+
+```{r}
+library(rpart)
+library(treemisc)
+set.seed(100)  # para reproducibilidad, considerando los algoritmos internos de VC
+tree <- rpart(Edibility ~ ., data = mushroom, cp = 0.005)
+tree_diagram(tree, prob = FALSE)
+```
+
+La siguiente información se extrae del objeto rpart. 
+
+- Los errores son proporciones  de $R(\tau_0)$, el error para el nodo raíz del árbol. 
+- Los valores con x son aleatorios, correspondientes a la validación cruzada. 
+- El parámetro de complejidad se puede usar para minimizar xerror. 
+- También se puede usar la regla conocida como 1-SE: el valor más grande en el rango de una desviación estándar del mínimo. El mínimo en este caso es 0.0074055+0.0013727 = 0.0087782 lo que da el 4o renglón. 
+
+```{r}
+# valores de la estimación
+printcp(tree) # valores con x se obtienen de la validación cruzada
+# gráfica de 
+plotcp(tree)
+```
+
+Para el nodo 8, el riesgo es $24/8124 \approx 0.003$. El árbol tiene 7 nodos $A_i$ $i\in \{1,2,3,4,5,8,9\}$. (en `rpart` los nodos hijos izquierdo y derecho del nodo $x$ se numeran como $2x$ y $2x+1$). El riesgo de cada nodo terminal es $R(A_i) = N_{j,A}/N_A$, donde $N_{j,A}$ es el número de casos en el nodo mal clasificados y $N_A$ son los bien clasificados.
+
+Hay $|\tau_0|-1=4-1 = 3$ nodos internos en el árbol (1,2, y 4). Los valores $\alpha$ correspondientes son 
+
+- $\alpha_{A_1} = (3916/8124 - 24/8124)/(4-1) \approx 0.160$ 
+- $\alpha_{A_2} = (120/8124 - 24/8124)/(3-1) \approx 0.006$
+- $\alpha_{A_4} = (48/8124 - 24/8124)/(2-1) \approx 0.003$
+
+Como $A_4$ da la alfa más pequeña, se colapsa el nodo $A_4$, que da entonces el árbol:
+```{r}
+tree2 <- prune(tree, cp = 0.01)
+tree_diagram(tree2, prob = FALSE, faclen = 3, cex = 0.8)
+```
+
+Para encontrar $\alpha_2$ se comienza con $\tau_{\alpha_1}$ y se repite el proceso:
+
+- $\alpha_{A_1} = (3916/8124 - 48/8124))/(3-1) \approx 0.238$
+- $\alpha_{A_2} = (120/8124 - 48/8124))/(2-1) \approx 0.009$
+
+Lo que da $\alpha_2 = 0.009$. Lo que da el nuevo subarbol: 
+
+```{r}
+tree3 <- prune(tree, cp = 0.02)
+tree_diagram(tree3, prob = FALSE, faclen = 3, cex = 0.8)
+```
+
+De aquì, la única posibilidad es que $\alpha_3 = (3916/8124-120/8124)/(2-1)\approx 0.467$. La secuencia de valores que se obtiene es $(\alpha_1 = 0.003, \alpha_2=0.009, \alpha_3 = 0.467)$.
+
+En la práctica, se usa validación cruzada para seleccionar un valor razonable de $\alpha$.
+
+Hay esencialmente tres paraámetros que asociados con árboles tipo CART:
+
+1. El número de splits
+2. El tamaño máximo de cualquier nodo terminal
+3. El parámetro de costo-complejidad ($\alpha = cp$ en `rpart`)
+
+Usualmente el costo-complejidad es el parámetro que se escoge para hacer validación cruzada. 
+
+Repitamos algunos ejercicios con árboles más complejos (`cp = 0`)
+
+```{r}
+set.seed(100)
+(arbolongo <- rpart(Edibility ~ ., data = mushroom, cp = 0))
+tree_diagram(arbolongo)
+
+# El árbol está controlado por los siguientes parámetros. 
+unlist(arbolongo$control)
+arbolongo1 <- rpart(Edibility ~ ., data = mushroom, cp = 0, xval = 5)
+tree_diagram(arbolongo1)
+```
+
+Equivalentemente, se puede hacer: 
+
+```{r}
+ctrl <- rpart.control(cp = 0, xval = 5)
+arbolongo1 <- rpart(Edibility ~ ., data = mushroom, control = ctrl)
+```
+
+Para ver el resultado de la validación cruzada se utiliza: 
+
+```{r}
+plotcp(arbolongo)
+```
+
+
+### Ejemplo 4: predicción de precios de casas. 
+
+Los datos de casas Ames del paquete `AmesHousing` contiene información de la asesorìa Ames utilizada en calcular avalúos para propiedades residenciales en Ames, Iowa de 2006 a 2010. Esta información está documentada en [https://jse.amstat.org/v19n3/decock/DataDocumentation.txt](https://jse.amstat.org/v19n3/decock/DataDocumentation.txt).
+
+El conjunto de datos tiene $N = 2930 observaciones en 81 variables. La variable de respuesta es el precio final de la casa (`Sale_Price`). Las 80 variables restantes que se usan como predictores, son una mezcla de tipo de variables ordinales y categóricas. 
+
+El objetivo es hacer predicción sobre el precio de las casas. Los datos se dividirán en train y test para la construcción de un modelo de predicción.
+
+```{r}
+library(AmesHousing)
+ames <- as.data.frame(make_ames())
+ames$Sale_Price <- ames$Sale_Price/1000  # reescalamos la respuesta.
+set.seed(100)
+idx <- sample.int(nrow(ames), size = floor(0.7*nrow(ames))) # cerca del 70%
+ames.train <- ames[idx,]  # datos de entrenamiento
+ames.test <- ames[-idx,]  # datos de prueba
+```
+
+Primero ajustamos un árbol sobreparametrizado (tamaño grande, o cp = 0)
+
+```{r}
+library(rpart)
+library(treemisc)
+set.seed(100)
+a1 <- rpart(Sale_Price ~ ., data = ames.train, cp = 0)
+
+# calcula la raíz del error cuadrático medio del ajuste
+rmse <- function(pred,obs)sqrt(mean((pred-obs)^2))
+rmse(predict(a1, newdata = ames.train), obs = ames.train$Sale_Price)
+
+# Calcula el RMSE del archivo de prueba
+rmse(predict(a1, newdata = ames.test), obs = ames.test$Sale_Price)
+```
+
+El sobreajuste se nota en la discrepancia grande entre el RMSE del conjunto de entrenamiento y de prueba. Ahora podamos el árbol para ver si mejoramos.
+
+```{r}
+a1.poda <- prune_se(a1, se = 1) # usa la regla de una desviación estándar de Breiman
+rmse(predict(a1.poda, newdata = ames.train), obs = ames.train$Sale_Price)
+rmse(predict(a1.poda, newdata = ames.test), obs = ames.test$Sale_Price)
+```
+
+Se redujo la discrepancia. Además, la complejidad del árbol es mucho menor
+
+```{r}
+par(mfrow=c(1,2))
+plot(a1)
+plot(a1.poda)
+```
+
+Si aun el árbol es muy complejo para su interpretación, podemos tratar de simplificar el conjunto de datos tomando en cuenta la importancia relativa de las variables. 
+
+```{r}
+vi <- sort(a1.poda$variable.importance, decreasing =T)
+vi <- vi/sum(vi) # se escala a 1
+dotchart(vi[1:20], xlab = "Importancia de las variables", pch = 19)
+```
+
+
