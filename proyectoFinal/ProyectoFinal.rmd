@@ -1,0 +1,107 @@
+---
+output: reprex::reprex_document
+knit: reprex::reprex_render
+---
+
+Proyecto final de estadística no paramétrica 
+
+# A Real Example that Illustrates Interesting Properties of Bootstrap Bias Correction 
+
+@author: Diego Velázquez
+@author: Marcelino Sánchez 
+@author: Enrique Vargas 
+
+# Cálculo del estimador $\hat{\theta^{BC}}$. 
+
+Dudas por hacer: 
+
+1. En qué momento se aplica el Bootstrap? Se aplica sobre $\hat{\theta^{BC}}$ ? 
+
+```{r}
+#set.seed(3000)
+n <- 10; 
+lambda1 <- 1; 
+lambda2 <- 5;  
+thetaVector <-  rep(3, n)
+dVector <- rep(2,n)
+
+# Definimos un vector x simulado de una exponencial  
+x <- rexp(n, lambda1)+ thetaVector + dVector 
+y <- rexp(n, lambda2) - thetaVector+ dVector
+
+# Definimos los estadísticos de orden X, Y, para eso X es el arreglo ordenado de x y Y es el arreglo ordenado de y 
+X <- sort(x)
+Y <- sort(y)
+
+
+# Estimamos theta hat 
+theta_hat <- (X[1] - Y[1])/2
+
+# Cálculo alterno de \theta_bc 
+sum_1 <- 0;
+for(i in 1:n){
+    sum_1 <- sum_1 + ( ((n-i+1)/n)^n - ((n-i)/n)^n ) * (X[i] - Y[i])/2
+}
+theta_bc <- X[1] - Y[1] - sum_1 
+
+print(paste("theta_hat = ", theta_hat), quote = FALSE, digits = 10)
+print(paste("theta_bc = ", theta_bc), quote = FALSE, digits = 10)
+
+```
+
+# Cálculo del Error cuadrático medio de $\hat{\theta}$ y de $\hat{\theta}^{BC}$
+
+```{r}
+
+# Definimos la función que nos regresa el valor de mu_i 
+mu_i <- function(i, n){
+    sum <- 0;
+    for(k in n-i+1:n){
+        sum <- sum + 1/k; 
+    }
+    return(sum); 
+}
+# Definimos la función que nos regresa el valor de sigma_i^2
+sigma_i <- function(i, n){
+    sum <- 0;
+    for(k in n-i+1:n){
+        sum <- sum + 1/k^2; 
+    }
+    return(sum); 
+}
+
+lambdaAB <- 1; 
+lambdaBA <- 5;
+
+n <- 10; 
+
+MSE_theta <- ((1/lambdaAB - 1/lambdaBA)^2 + 1/lambdaAB^2 + 1/lambdaBA^2)/4*n^2; 
+sqrt(MSE_theta); 
+
+# Ahora calculamos MSE_theta_bc 
+
+suma_1 <- 0; 
+for(i in 1:n){
+    suma_2 <- 0; 
+    for(k in (i+1):n){
+        if(k <= n){
+            suma_2 <- suma_2 + w[i] * w[k]; 
+        }
+    }
+    suma_1 <- suma_1 + (w[i]^2 + 2 * suma_2)* sigma_i(i, n); 
+}
+suma_1
+
+suma_3 <- 0; 
+for(i in 1:n){
+    suma_3 <- suma_3 + w[i] * mu_i(i, n);
+}
+
+MSE_theta_bc <- (1/lambdaAB^2 + 1/lambdaBA^2) * suma_1 + (1/lambdaAB - 1/lambdaBA)^2 * suma_3^2;
+
+sqrt(MSE_theta_bc)
+
+print(paste("raíz de MSE_theta = ", sqrt(MSE_theta)), quote = FALSE, digits = 10)
+print(paste("raíz de MSE_theta_bc = ", sqrt(MSE_theta_bc)), quote = FALSE, digits = 10)
+
+```
