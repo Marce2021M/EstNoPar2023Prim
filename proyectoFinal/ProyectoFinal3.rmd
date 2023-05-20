@@ -1,0 +1,296 @@
+---
+output: reprex::reprex_document
+knit: reprex::reprex_render
+---
+
+Proyecto final de estadística no paramétrica 
+
+# A Real Example that Illustrates Interesting Properties of Bootstrap Bias Correction 
+
+@author: Diego Velázquez
+@author: Marcelino Sánchez 
+@author: Enrique Vargas 
+
+# Cálculo del estimador $\hat{\theta^{BC}}$. 
+
+Dudas por hacer: 
+
+1. En qué momento se aplica el Bootstrap? Se aplica sobre $\hat{\theta^{BC}}$ ? 
+
+```{r}
+n <- 10; 
+lambdaAB <- 1; 
+lambdaBA <- 5;   
+
+theta <- 3; 
+d <- 2; 
+
+thetaVector <- rep(theta, n); 
+dVector <- rep(d, n); 
+
+# Definimos un vector x simulado de una exponencial con parámetro lambda = 1 
+x <- rexp(n, lambdaAB) + thetaVector + dVector; 
+y <- rexp(n, lambdaBA) - thetaVector + dVector; 
+
+# Definimos una función para calcular el sesgo corregido por bootstrap
+# @return theta_hat 
+# @return theta_bc
+calcula_sesgos <- function(x, y){
+    # Definimos los estadísticos de orden X, Y, para eso X es el arreglo ordenado de x y Y es el arreglo ordenado de y 
+    X <- sort(x); 
+    Y <- sort(y); 
+
+    # Estimamos theta hat 
+    theta_hat <- (X[1] - Y[1])/2; 
+
+    # Cálculo alterno de \theta_bc para ver si tenemos lo mismo 
+    sum_1 <- 0;
+    for(i in 1:n){
+        sum_1 <- sum_1 + ( ((n-i+1)/n)^n - ((n-i)/n)^n ) * (X[i] - Y[i])/2; 
+    }
+    theta_bc <- X[1] - Y[1] - sum_1; 
+
+    return(c(theta_hat, theta_bc))
+}
+
+res = calcula_sesgos(x, y); 
+print(paste("theta_hat = ", res[1]), quote = FALSE, digits = 10)
+print(paste("theta_bc = ", res[2]), quote = FALSE, digits = 10)
+
+```
+
+# Simulaciones 
+    
+```{r}
+# Vectores para guardar registro de las estimaciones 
+thetasHAT <- c(); 
+thetasBC <- c();
+
+M <- 10000; 
+
+for(i in 1:M){
+    # Definimos un vector x simulado de una exponencial con parámetro lambda = 1 
+    x <- rexp(n, lambdaAB) + thetaVector + dVector; 
+    y <- rexp(n, lambdaBA) - thetaVector + dVector; 
+    # Obtenemos las estimacioes respectivas 
+    res <- calcula_sesgos(x, y);
+    thetasHAT[i] <- res[1];
+    thetasBC[i] <- res[2];
+}
+
+# Vamos a producir un plot que contenga los dos histogramas sobrepuestos con ggplot 
+library(ggplot2)
+
+# Definimos un data frame con los datos de thetasHAT y thetasBC
+difHAT <- theta - thetasHAT; 
+difBC <- theta - thetasBC; 
+indexes <- 1:M; 
+df <- data.frame(indexes, thetasHAT, thetasBC, difHAT, difBC);
+
+# Crear un plot con dos histogramas sobrepuestos
+ggplot(df, aes(x = thetasHAT, fill = "Theta hat")) + 
+    geom_histogram(alpha = 0.5, position = "identity", bins = 30) + 
+    geom_histogram(aes(x = thetasBC, fill = "Theta bc"), alpha = 0.5, position = "identity", bins = 30) + 
+    scale_fill_manual(values = c("Theta hat" = "red", "Theta bc" = "blue")) + 
+    labs(x = "Valor", y = "Frecuencia", title = "Histograma de dos variables") + 
+    geom_vline(xintercept = theta, linetype = "dashed", color = "black", size = 1)
+
+# Crear un plot con dos histogramas sobrepuestos
+ggplot(df, aes(x = difHAT, fill = "Dif Theta hat")) + 
+    geom_histogram(alpha = 0.5, position = "identity", bins = 30) + 
+    geom_histogram(aes(x = difBC, fill = "Dif Theta bc"), alpha = 0.5, position = "identity", bins = 30) + 
+    scale_fill_manual(values = c("Dif Theta hat" = "red", "Dif Theta bc" = "blue")) + 
+    labs(x = "Valor", y = "Frecuencia", title = "Histograma de dos variables") + 
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1)
+
+
+# Calcular los promedios acumulados de las series 1 y 2
+df$prom_acumHAT <- cumsum(df$thetasHAT) / seq_along(df$thetasHAT)
+df$prom_acumBC <- cumsum(df$thetasBC) / seq_along(df$thetasBC)
+
+# Crear un plot con los promedios acumulados de las series 1 y 2
+ggplot(df, aes(x = indexes)) +
+  geom_line(aes(y = prom_acumHAT, color = "Cumm Theta Hat")) +
+  geom_line(aes(y = prom_acumBC, color = "Cumm Theta BC")) +
+  scale_color_manual(values = c("Cumm Theta Hat" = "red", "Cumm Theta BC" = "blue")) +
+  labs(x = "Fecha", y = "Promedio acumulado", title = "Promedio acumulado de las simulaciones") + 
+  geom_hline(yintercept = theta, linetype = "dashed", color = "black", size = 1)
+
+
+```
+
+
+# Cálculo del Error cuadrático medio de $\hat{\theta}$ y de $\hat{\theta}^{BC}$
+
+```{r}
+
+# Definimos los estadísticos de orden X, Y, para eso X es el arreglo ordenado de x y Y es el arreglo ordenado de y 
+X <- sort(x); 
+Y <- sort(y); 
+
+# Vamos a definir el estimador corregido por sesgo \theta BC 
+w = c()
+w[1] <- 1/2 + ((n-1)/n)^n/2
+
+for(i in 2:n){
+    w[i] <- -((n-i+1)/n)^n/2 + ((n-i)/n)^n/2
+}
+
+# Definimos la función que nos regresa el valor de mu_i 
+mu_i <- function(i, n){
+    sum <- 0;
+    for(k in n-i+1:n){
+        sum <- sum + 1/k; 
+    }
+    return(sum); 
+}
+# Definimos la función que nos regresa el valor de sigma_i^2
+sigma_i <- function(i, n){
+    sum <- 0;
+    for(k in n-i+1:n){
+        sum <- sum + 1/k^2; 
+    }
+    return(sum); 
+}
+
+MSE_theta <- ((1/lambdaAB - 1/lambdaBA)^2 + 1/lambdaAB^2 + 1/lambdaBA^2)/4*n^2; 
+
+# Ahora calculamos MSE_theta_bc 
+
+suma_1 <- 0; 
+for(i in 1:n){
+    suma_2 <- 0; 
+    for(k in (i+1):n){
+        if(k <= n){
+            suma_2 <- suma_2 + w[i] * w[k]; 
+        }
+    }
+    suma_1 <- suma_1 + (w[i]^2 + 2 * suma_2)* sigma_i(i, n); 
+}
+
+suma_3 <- 0; 
+for(i in 1:n){
+    suma_3 <- suma_3 + w[i] * mu_i(i, n);
+}
+
+MSE_theta_bc <- (1/lambdaAB^2 + 1/lambdaBA^2) * suma_1 + (1/lambdaAB - 1/lambdaBA)^2 * suma_3^2;
+
+
+print(paste("raíz de MSE_theta = ", sqrt(MSE_theta)), quote = FALSE, digits = 10)
+print(paste("raíz de MSE_theta_bc = ", sqrt(MSE_theta_bc)), quote = FALSE, digits = 10)
+
+```
+
+# Caso uniforme 
+
+```{r}
+
+# Las X's se distribuyen uniforme en el intervalo [0, lambdaAB] + d + theta
+# Las Y's se distribuyen uniforme en el intervalo [0, lambdaBA] + d - theta
+x <- runif(n, 0, lambdaAB) + thetaVector + dVector;
+y <- runif(n, 0, lambdaBA) - thetaVector + dVector;
+
+# Función para calcular la esperanza de un estadístico de orden 
+esperanzas_Xi <- dVector + thetaVector + lambdaAB * 1:n * 1/(n+1);
+esperanzas_Yi <- dVector - thetaVector + lambdaBA * 1:n * 1/(n+1);
+
+res <- calcula_sesgos(x, y);
+
+print(paste("theta_hat = ", res[1]), quote = FALSE, digits = 10)
+print(paste("theta_bc = ", res[2]), quote = FALSE, digits = 10)
+
+```
+
+# Simulaciones 
+    
+```{r}
+# Vectores para guardar registro de las estimaciones 
+thetasHAT <- c(); 
+thetasBC <- c();
+
+M <- 1000; 
+
+for(i in 1:M){
+    # Definimos un vector x simulado de una exponencial con parámetro lambda = 1 
+    x <- runif(n, 0, lambdaAB) + thetaVector + dVector;
+    y <- runif(n, 0, lambdaBA) - thetaVector + dVector;
+    # Obtenemos las estimacioes respectivas 
+    res <- calcula_sesgos(x, y);
+    thetasHAT[i] <- res[1];
+    thetasBC[i] <- res[2];
+}
+
+# Vamos a producir un plot que contenga los dos histogramas sobrepuestos con ggplot 
+library(ggplot2)
+
+# Definimos un data frame con los datos de thetasHAT y thetasBC
+difHAT <- theta - thetasHAT; 
+difBC <- theta - thetasBC; 
+indexes <- 1:M; 
+df <- data.frame(indexes, thetasHAT, thetasBC, difHAT, difBC);
+
+# Crear un plot con dos histogramas sobrepuestos
+ggplot(df, aes(x = thetasHAT, fill = "Theta hat")) + 
+    geom_histogram(alpha = 0.5, position = "identity", bins = 30) + 
+    geom_histogram(aes(x = thetasBC, fill = "Theta bc"), alpha = 0.5, position = "identity", bins = 30) + 
+    scale_fill_manual(values = c("Theta hat" = "red", "Theta bc" = "blue")) + 
+    labs(x = "Valor", y = "Frecuencia", title = "Histograma de dos variables") + 
+    geom_vline(xintercept = theta, linetype = "dashed", color = "black", size = 1)
+
+# Crear un plot con dos histogramas sobrepuestos
+ggplot(df, aes(x = difHAT, fill = "Dif Theta hat")) + 
+    geom_histogram(alpha = 0.5, position = "identity", bins = 30) + 
+    geom_histogram(aes(x = difBC, fill = "Dif Theta bc"), alpha = 0.5, position = "identity", bins = 30) + 
+    scale_fill_manual(values = c("Dif Theta hat" = "red", "Dif Theta bc" = "blue")) + 
+    labs(x = "Valor", y = "Frecuencia", title = "Histograma de dos variables") + 
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1)
+
+# Calcular los promedios acumulados de las series 1 y 2
+df$prom_acumHAT <- cumsum(df$thetasHAT) / seq_along(df$thetasHAT)
+df$prom_acumBC <- cumsum(df$thetasBC) / seq_along(df$thetasBC)
+
+# Crear un plot con los promedios acumulados de las series 1 y 2
+ggplot(df, aes(x = indexes)) +
+  geom_line(aes(y = prom_acumHAT, color = "Cumm Theta Hat")) +
+  geom_line(aes(y = prom_acumBC, color = "Cumm Theta BC")) +
+  scale_color_manual(values = c("Cumm Theta Hat" = "red", "Cumm Theta BC" = "blue")) +
+  labs(x = "Fecha", y = "Promedio acumulado", title = "Promedio acumulado de las simulaciones") + 
+  geom_hline(yintercept = theta, linetype = "dashed", color = "black", size = 1)
+
+# Cálculo del MSE para el caso uniforme 
+X <- sort(x); 
+Y <- sort(y); 
+
+theta_BC <- 0 
+for(i in 1:n){
+    theta_BC <- theta_BC + w[i] * (X[i] - Y[i]); 
+}
+
+# Cálculo de la esperanza 
+aux_1 <- 0; 
+for(i in 1:n){
+    aux_1 <- aux_1 + w[i] * (theta_BC + i * lambdaAB /(n+1))
+}
+aux_2 <- 0; 
+for(i in 1:n){
+    aux_2 <- aux_2 + w[i] * (-theta_BC + i * lambdaBA/(n-1))
+}
+E_theta_BC <- aux_1 - aux_2;
+print(paste("El valor esperado de thetaBC es", E_theta_BC))
+
+# Cálculo de la varianza de Theta_BC
+aux_1 <- 0; 
+for(i in 1:n){
+    aux_2 <- w[i]^2 * (12*i*(n-i+1))/((n+1)^2*(n+2)); 
+    aux_3 <- 0; 
+    for(j in 1:n){
+        aux_3 <- aux_3 + w[i] * w[j] *(12*i*(n-j+1))/((n+1)^2*(n+2)); 
+    }
+    aux_1 <- aux_1 + aux_2 + 2 * aux_3; 
+}
+Var_theta_BC <- aux_1 * (lambdaAB^2 + lambdaBA^2)
+
+MSE_theta_BC <- Var_theta_BC + (E_theta_BC - theta_BC)^2;
+
+print(paste("El MSE de thetaBC es", MSE_theta_BC))
+```
